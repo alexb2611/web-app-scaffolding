@@ -135,6 +135,17 @@ alembic revision --autogenerate -m "description"
 alembic upgrade head
 ```
 
+## CI Pipeline
+
+GitHub Actions runs on every push and PR to `main`. Both jobs must pass:
+
+| Job | Checks |
+|-----|--------|
+| **Backend** | `ruff check .` · `black --check .` · `mypy .` · `pytest` (with PostgreSQL service) |
+| **Frontend** | `npm run lint` · `npm run typecheck` · `npm run format:check` · `npm run build` |
+
+All backend tools are installed via `pip install -e ".[dev]"`, all frontend tools via `npm ci`. Run `make lint && make format && make typecheck && make test` locally to catch issues before pushing.
+
 ## Environment Variables
 
 Copy `.env.example` to `.env` and configure:
