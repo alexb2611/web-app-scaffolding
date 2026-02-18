@@ -35,7 +35,7 @@ async def register(
     request: Request,
     data: UserCreate,
     db: AsyncSession = Depends(get_db),
-):
+) -> User:
     """Create a new user account."""
     existing = await get_user_by_email(db, data.email)
     if existing:
@@ -49,7 +49,9 @@ async def register(
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
-async def login(request: Request, data: UserLogin, db: AsyncSession = Depends(get_db)):
+async def login(
+    request: Request, data: UserLogin, db: AsyncSession = Depends(get_db)
+) -> TokenResponse:
     """Authenticate and return access + refresh tokens."""
     user = await authenticate_user(db, data.email, data.password)
     if user is None:
@@ -65,7 +67,7 @@ async def login(request: Request, data: UserLogin, db: AsyncSession = Depends(ge
 
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit("10/minute")
-async def refresh(request: Request, body: TokenRefreshRequest):
+async def refresh(request: Request, body: TokenRefreshRequest) -> TokenResponse:
     """Exchange a valid refresh token for a new access + refresh pair."""
     try:
         payload = decode_token(body.refresh_token)
@@ -87,6 +89,6 @@ async def refresh(request: Request, body: TokenRefreshRequest):
 
 
 @router.get("/me", response_model=UserResponse)
-async def read_current_user(current_user: User = Depends(get_current_user)):
+async def read_current_user(current_user: User = Depends(get_current_user)) -> User:
     """Return the profile of the currently authenticated user."""
     return current_user

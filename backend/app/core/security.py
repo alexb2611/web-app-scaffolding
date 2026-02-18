@@ -1,6 +1,7 @@
 """JWT token and password hashing utilities."""
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import bcrypt
 from jose import JWTError, jwt
@@ -26,19 +27,28 @@ def create_access_token(subject: str, expires_delta: timedelta | None = None) ->
         expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
     )
     to_encode = {"sub": subject, "exp": expire, "type": "access"}
-    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+    encoded: str = jwt.encode(
+        to_encode, settings.secret_key, algorithm=settings.algorithm
+    )
+    return encoded
 
 
 def create_refresh_token(subject: str) -> str:
     """Create a signed JWT refresh token with a longer expiry."""
     expire = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
     to_encode = {"sub": subject, "exp": expire, "type": "refresh"}
-    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+    encoded: str = jwt.encode(
+        to_encode, settings.secret_key, algorithm=settings.algorithm
+    )
+    return encoded
 
 
-def decode_token(token: str) -> dict:
+def decode_token(token: str) -> dict[str, Any]:
     """Decode and validate a JWT token. Raises JWTError on failure."""
-    return jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+    payload: dict[str, Any] = jwt.decode(
+        token, settings.secret_key, algorithms=[settings.algorithm]
+    )
+    return payload
 
 
 __all__ = [
