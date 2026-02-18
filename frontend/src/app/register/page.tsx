@@ -35,9 +35,7 @@ export default function RegisterPage() {
       await register(email, password, fullName || undefined);
       router.push("/dashboard");
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.detail : "Something went wrong",
-      );
+      setError(err instanceof ApiError ? err.detail : "Something went wrong");
     } finally {
       setIsSubmitting(false);
     }
@@ -62,9 +60,7 @@ export default function RegisterPage() {
             <div className="space-y-2">
               <Label htmlFor="fullName">
                 Full name{" "}
-                <span className="text-muted-foreground font-normal">
-                  (optional)
-                </span>
+                <span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
               <Input
                 id="fullName"
@@ -103,11 +99,7 @@ export default function RegisterPage() {
           </CardContent>
 
           <CardFooter className="flex flex-col gap-4">
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isSubmitting}
-            >
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? "Creating account…" : "Create account"}
             </Button>
             <p className="text-muted-foreground text-center text-sm">

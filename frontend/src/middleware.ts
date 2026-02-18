@@ -11,9 +11,7 @@ export function middleware(request: NextRequest) {
   const hasToken = request.cookies.has("auth-token");
 
   // Redirect unauthenticated users away from protected routes
-  const isProtected = PROTECTED_PREFIXES.some((p) =>
-    pathname.startsWith(p),
-  );
+  const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
   if (isProtected && !hasToken) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);

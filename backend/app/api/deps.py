@@ -29,8 +29,8 @@ async def get_current_user(
         token_type: str | None = payload.get("type")
         if email is None or token_type != "access":
             raise credentials_exception
-    except JWTError:
-        raise credentials_exception
+    except JWTError as err:
+        raise credentials_exception from err
 
     user = await get_user_by_email(db, email)
     if user is None or not user.is_active:

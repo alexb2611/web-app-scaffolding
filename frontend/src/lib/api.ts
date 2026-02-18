@@ -47,10 +47,7 @@ export class ApiError extends Error {
 
 // ── Core fetch wrapper ─────────────────────────────────────────────────
 
-async function request<T>(
-  url: string,
-  options: RequestInit = {},
-): Promise<T> {
+async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
 
   if (!headers.has("Content-Type") && options.body) {

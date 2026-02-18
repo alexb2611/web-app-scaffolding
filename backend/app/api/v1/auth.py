@@ -31,7 +31,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
     status_code=status.HTTP_201_CREATED,
 )
 @limiter.limit("5/minute")
-async def register(request: Request, data: UserCreate, db: AsyncSession = Depends(get_db)):
+async def register(
+    request: Request, data: UserCreate, db: AsyncSession = Depends(get_db),
+):
     """Create a new user account."""
     existing = await get_user_by_email(db, data.email)
     if existing:
@@ -71,11 +73,11 @@ async def refresh(request: Request, body: TokenRefreshRequest):
                 detail="Invalid token type",
             )
         email: str = payload["sub"]
-    except JWTError:
+    except JWTError as err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
-        )
+        ) from err
     return TokenResponse(
         access_token=create_access_token(email),
         refresh_token=create_refresh_token(email),

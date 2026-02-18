@@ -34,9 +34,7 @@ export default function LoginPage() {
       await login(email, password);
       router.push("/dashboard");
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.detail : "Something went wrong",
-      );
+      setError(err instanceof ApiError ? err.detail : "Something went wrong");
     } finally {
       setIsSubmitting(false);
     }
@@ -47,9 +45,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl">Sign in</CardTitle>
-          <CardDescription>
-            Enter your credentials to continue
-          </CardDescription>
+          <CardDescription>Enter your credentials to continue</CardDescription>
         </CardHeader>
 
         <form onSubmit={handleSubmit}>
@@ -87,11 +83,7 @@ export default function LoginPage() {
           </CardContent>
 
           <CardFooter className="flex flex-col gap-4">
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isSubmitting}
-            >
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? "Signing in…" : "Sign in"}
             </Button>
             <p className="text-muted-foreground text-center text-sm">
