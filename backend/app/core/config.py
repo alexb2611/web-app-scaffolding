@@ -29,9 +29,7 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     # Database
-    database_url: str = (
-        "postgresql+asyncpg://postgres:postgres@db:5432/myapp"
-    )
+    database_url: str = "postgresql+asyncpg://postgres:postgres@db:5432/myapp"
 
     # For Alembic (sync driver)
     @property

@@ -32,7 +32,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 )
 @limiter.limit("5/minute")
 async def register(
-    request: Request, data: UserCreate, db: AsyncSession = Depends(get_db),
+    request: Request,
+    data: UserCreate,
+    db: AsyncSession = Depends(get_db),
 ):
     """Create a new user account."""
     existing = await get_user_by_email(db, data.email)

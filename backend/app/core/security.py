@@ -17,16 +17,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     """Hash a plaintext password using bcrypt."""
-    return bcrypt.hashpw(
-        password.encode("utf-8"), bcrypt.gensalt()
-    ).decode("utf-8")
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
     """Create a signed JWT access token."""
     expire = datetime.now(UTC) + (
-        expires_delta
-        or timedelta(minutes=settings.access_token_expire_minutes)
+        expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
     )
     to_encode = {"sub": subject, "exp": expire, "type": "access"}
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
