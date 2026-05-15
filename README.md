@@ -104,6 +104,12 @@ mypy .                           # Type check
 
 ### Frontend (standalone)
 
+When running outside Docker, the middleware needs `SECRET_KEY` to verify JWTs. Create `frontend/.env.local` with the same value used by the backend:
+
+```bash
+echo "SECRET_KEY=$(grep ^SECRET_KEY ../.env | cut -d= -f2-)" > .env.local
+```
+
 ```bash
 cd frontend
 npm install

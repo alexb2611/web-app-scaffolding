@@ -20,17 +20,25 @@ export function getRefreshToken(): string | null {
   return localStorage.getItem(REFRESH_KEY);
 }
 
+function cookieAttrs(): string {
+  const base = "path=/; SameSite=Lax";
+  // Browsers reject Secure cookies on plain http://, so only set it on https
+  return typeof window !== "undefined" && window.location.protocol === "https:"
+    ? `${base}; Secure`
+    : base;
+}
+
 export function setTokens(access: string, refresh: string) {
   localStorage.setItem(TOKEN_KEY, access);
   localStorage.setItem(REFRESH_KEY, refresh);
   // Mirror to cookie so Next.js middleware can read it
-  document.cookie = `auth-token=${access}; path=/; SameSite=Lax`;
+  document.cookie = `auth-token=${access}; ${cookieAttrs()}`;
 }
 
 export function clearTokens() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REFRESH_KEY);
-  document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  document.cookie = `auth-token=; ${cookieAttrs()}; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 }
 
 // ── API error ──────────────────────────────────────────────────────────
@@ -81,20 +89,30 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// Singleton gate — concurrent 401s must share one refresh call, otherwise the
+// backend's rotating refresh token invalidates the loser's freshly-issued pair.
+let refreshInflight: Promise<boolean> | null = null;
+
 async function tryRefresh(): Promise<boolean> {
-  try {
-    const res = await fetch("/api/v1/auth/refresh", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: getRefreshToken() }),
-    });
-    if (!res.ok) return false;
-    const data = await res.json();
-    setTokens(data.access_token, data.refresh_token);
-    return true;
-  } catch {
-    return false;
-  }
+  if (refreshInflight) return refreshInflight;
+  refreshInflight = (async () => {
+    try {
+      const res = await fetch("/api/v1/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: getRefreshToken() }),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      setTokens(data.access_token, data.refresh_token);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshInflight = null;
+    }
+  })();
+  return refreshInflight;
 }
 
 // ── Public API methods ─────────────────────────────────────────────────

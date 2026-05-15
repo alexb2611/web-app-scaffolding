@@ -9,15 +9,15 @@ from app.schemas.auth import UserCreate
 
 
 async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
-    """Look up a user by their email address."""
-    result = await db.execute(select(User).where(User.email == email))
+    """Look up a user by their email address (case-insensitive)."""
+    result = await db.execute(select(User).where(User.email == email.lower()))
     return result.scalar_one_or_none()
 
 
 async def create_user(db: AsyncSession, data: UserCreate) -> User:
     """Create a new user with a hashed password."""
     user = User(
-        email=data.email,
+        email=data.email.lower(),
         hashed_password=get_password_hash(data.password),
         full_name=data.full_name,
     )

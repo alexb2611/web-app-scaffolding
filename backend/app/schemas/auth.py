@@ -1,6 +1,6 @@
 """Pydantic schemas for authentication requests and responses."""
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -24,6 +24,11 @@ class UserCreate(BaseModel):
     password: str
     full_name: str | None = None
 
+    @field_validator("email")
+    @classmethod
+    def _lowercase_email(cls, v: str) -> str:
+        return v.lower()
+
 
 class UserResponse(BaseModel):
     id: str
@@ -37,3 +42,8 @@ class UserResponse(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def _lowercase_email(cls, v: str) -> str:
+        return v.lower()

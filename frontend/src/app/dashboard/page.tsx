@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -15,17 +16,20 @@ export default function DashboardPage() {
   const { user, isLoading, logout } = useAuth();
   const router = useRouter();
 
-  if (isLoading) {
+  // Middleware redirects on navigation, but a token that expires mid-session
+  // leaves the page rendering with user=null — this catches that case.
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login");
+    }
+  }, [isLoading, user, router]);
+
+  if (isLoading || !user) {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <p className="text-muted-foreground">Loading…</p>
       </main>
     );
-  }
-
-  if (!user) {
-    router.push("/login");
-    return null;
   }
 
   return (
