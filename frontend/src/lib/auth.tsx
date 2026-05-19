@@ -9,16 +9,13 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import { api, bootstrapSession, setAccessToken } from "./api";
+
+import type { components } from "./api-types";
+import { bootstrapSession, client, setAccessToken, unwrap } from "./api";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-export interface User {
-  id: string;
-  email: string;
-  full_name: string | null;
-  is_active: boolean;
-}
+export type User = components["schemas"]["UserResponse"];
 
 interface AuthState {
   user: User | null;
@@ -46,11 +43,6 @@ export function useAuth(): AuthContextValue {
 
 // ── Provider ───────────────────────────────────────────────────────────
 
-interface LoginResponse {
-  access_token: string;
-  token_type: string;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const u = await api.get<User>("/api/v1/auth/me");
+      const u = await unwrap(client.GET("/api/v1/auth/me"));
       setUser(u);
     } catch {
       setUser(null);
@@ -79,22 +71,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [bootstrap]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await api.post<LoginResponse>("/api/v1/auth/login", {
-      email,
-      password,
-    });
-    setAccessToken(res.access_token);
-    const u = await api.get<User>("/api/v1/auth/me");
+    const tokens = await unwrap(
+      client.POST("/api/v1/auth/login", {
+        body: { email, password },
+      }),
+    );
+    setAccessToken(tokens.access_token);
+    const u = await unwrap(client.GET("/api/v1/auth/me"));
     setUser(u);
   }, []);
 
   const register = useCallback(
     async (email: string, password: string, fullName?: string) => {
-      await api.post("/api/v1/auth/register", {
-        email,
-        password,
-        full_name: fullName || null,
-      });
+      await unwrap(
+        client.POST("/api/v1/auth/register", {
+          body: { email, password, full_name: fullName || null },
+        }),
+      );
       await login(email, password);
     },
     [login],
@@ -102,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await api.post("/api/v1/auth/logout");
+      await client.POST("/api/v1/auth/logout");
     } catch {
       // Even if the call fails, clear local state.
     }

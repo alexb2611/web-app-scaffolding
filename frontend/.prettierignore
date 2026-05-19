@@ -1,0 +1,8 @@
+# Generated files — owned by codegen, formatted by their generators.
+src/lib/api-types.ts
+openapi.json
+
+# Build outputs
+.next/
+node_modules/
+*.tsbuildinfo

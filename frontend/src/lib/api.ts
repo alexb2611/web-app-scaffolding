@@ -1,12 +1,25 @@
 /**
  * Typed API client.
  *
- * The access token lives in memory only (no localStorage) to keep it out
- * of reach of XSS. The refresh token is delivered via an HttpOnly cookie
- * set by the backend, so every request needs `credentials: "include"` to
- * carry it. On a 401 we attempt a silent refresh (cookie is sent
- * automatically) and retry the original request.
+ * Powered by `openapi-fetch` against types generated from the backend's
+ * OpenAPI schema (`api-types.ts`). Path strings, query params, request
+ * bodies, and response shapes are all inferred — change the backend
+ * contract and call sites here fail to compile until they're updated.
+ *
+ * The access token lives in memory only (no localStorage) to keep it
+ * out of reach of XSS. The refresh token is delivered via an HttpOnly
+ * cookie set by the backend, so we pass `credentials: "include"` and
+ * the cookie rides along automatically.
+ *
+ * Auth + X-Request-ID + 401-refresh-retry all live in a `customFetch`
+ * passed to `createClient`. Doing it here (rather than via middleware)
+ * keeps the retry logic in control of the request lifecycle — we own
+ * the original Request and can clone it before retrying.
  */
+
+import createClient from "openapi-fetch";
+
+import type { paths } from "./api-types";
 
 // ── In-memory access token ─────────────────────────────────────────────
 
@@ -36,18 +49,14 @@ export class ApiError extends Error {
 // ── Request ID ────────────────────────────────────────────────────────
 
 function newRequestId(): string {
-  // crypto.randomUUID is available in all evergreen browsers + Node 19+.
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
   }
-  // Fallback for very old environments.
   return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
 }
 
 // ── Refresh coordination ───────────────────────────────────────────────
 
-// If multiple requests hit a 401 at the same time, we only want one
-// refresh call in flight.
 let pendingRefresh: Promise<boolean> | null = null;
 
 async function tryRefresh(): Promise<boolean> {
@@ -57,6 +66,7 @@ async function tryRefresh(): Promise<boolean> {
       const res = await fetch("/api/v1/auth/refresh", {
         method: "POST",
         credentials: "include",
+        headers: { "X-Request-ID": newRequestId() },
       });
       if (!res.ok) {
         setAccessToken(null);
@@ -75,73 +85,62 @@ async function tryRefresh(): Promise<boolean> {
   return pendingRefresh;
 }
 
-/** Public helper: bootstrap the in-memory token from the refresh cookie. */
+/** Bootstrap the in-memory access token from the HttpOnly refresh cookie. */
 export async function bootstrapSession(): Promise<boolean> {
   return tryRefresh();
 }
 
-// ── Core fetch wrapper ─────────────────────────────────────────────────
+// ── customFetch: auth + X-Request-ID + 401 retry ───────────────────────
 
-async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
-  const headers = new Headers(options.headers);
-  if (!headers.has("Content-Type") && options.body) {
-    headers.set("Content-Type", "application/json");
-  }
-  if (!headers.has("X-Request-ID")) {
-    headers.set("X-Request-ID", newRequestId());
+async function customFetch(req: Request): Promise<Response> {
+  if (!req.headers.has("X-Request-ID")) {
+    req.headers.set("X-Request-ID", newRequestId());
   }
   if (accessToken) {
-    headers.set("Authorization", `Bearer ${accessToken}`);
+    req.headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
-  const init: RequestInit = { ...options, headers, credentials: "include" };
-  let res = await fetch(url, init);
+  // Clone before the first send so we can replay on 401. Bodies are
+  // single-consumption streams; the clone is the only safe replay path.
+  const retryReq = req.clone();
+  const firstResponse = await fetch(req);
 
-  if (res.status === 401) {
-    const refreshed = await tryRefresh();
-    if (refreshed) {
-      if (accessToken) {
-        headers.set("Authorization", `Bearer ${accessToken}`);
-      }
-      res = await fetch(url, { ...options, headers, credentials: "include" });
-    }
+  if (firstResponse.status !== 401) return firstResponse;
+
+  const refreshed = await tryRefresh();
+  if (!refreshed) return firstResponse;
+
+  if (accessToken) {
+    retryReq.headers.set("Authorization", `Bearer ${accessToken}`);
   }
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new ApiError(
-      res.status,
-      body.detail ?? res.statusText,
-      res.headers.get("x-request-id"),
-    );
-  }
-
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  return fetch(retryReq);
 }
 
-// ── Public API methods ─────────────────────────────────────────────────
+// ── Typed client ──────────────────────────────────────────────────────
 
-export const api = {
-  get: <T>(url: string) => request<T>(url),
+export const client = createClient<paths>({
+  credentials: "include",
+  fetch: customFetch,
+});
 
-  post: <T>(url: string, body?: unknown) =>
-    request<T>(url, {
-      method: "POST",
-      body: body ? JSON.stringify(body) : undefined,
-    }),
-
-  put: <T>(url: string, body?: unknown) =>
-    request<T>(url, {
-      method: "PUT",
-      body: body ? JSON.stringify(body) : undefined,
-    }),
-
-  patch: <T>(url: string, body?: unknown) =>
-    request<T>(url, {
-      method: "PATCH",
-      body: body ? JSON.stringify(body) : undefined,
-    }),
-
-  delete: <T>(url: string) => request<T>(url, { method: "DELETE" }),
-};
+/**
+ * Throw on `{ error }` responses so call sites can stay terse.
+ * Returns `data` directly on success.
+ */
+export async function unwrap<T>(
+  promise: Promise<{
+    data?: T;
+    error?: unknown;
+    response: Response;
+  }>,
+): Promise<T> {
+  const { data, error, response } = await promise;
+  if (error !== undefined || !response.ok) {
+    const detail =
+      typeof error === "object" && error !== null && "detail" in error
+        ? String((error as { detail: unknown }).detail)
+        : response.statusText;
+    throw new ApiError(response.status, detail, response.headers.get("x-request-id"));
+  }
+  return data as T;
+}

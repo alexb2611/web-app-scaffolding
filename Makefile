@@ -2,7 +2,7 @@
 # Makefile — common development shortcuts
 # ---------------------------------------------------------------------------
 
-.PHONY: dev down build logs migrate test lint format clean
+.PHONY: dev down build logs migrate test lint format clean generate-api
 
 # Start all services
 dev:
@@ -69,3 +69,12 @@ format:
 typecheck:
 	docker compose exec backend mypy .
 	cd frontend && npm run typecheck
+
+# --- API contract ---
+
+# Regenerate frontend/openapi.json + src/lib/api-types.ts from the backend.
+# Run this after any change to the FastAPI routes or Pydantic schemas, then
+# commit the regenerated files. CI fails on drift.
+generate-api:
+	docker compose exec backend python scripts/export_openapi.py
+	cd frontend && npm run generate:api

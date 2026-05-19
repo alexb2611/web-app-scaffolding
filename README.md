@@ -88,7 +88,18 @@ make test             # Run all tests
 make lint             # Lint backend + frontend
 make format           # Format backend + frontend
 make typecheck        # Type check backend + frontend
+make generate-api     # Regenerate openapi.json + frontend api-types.ts
 ```
+
+### Typed API client
+
+The frontend uses [`openapi-fetch`](https://openapi-ts.dev/openapi-fetch/) against types generated from the backend's OpenAPI schema. Every API call has path, body, and response type inference:
+
+```typescript
+const tokens = await unwrap(client.POST("/api/v1/auth/login", { body: { email, password } }));
+```
+
+After any backend route or schema change, run `make generate-api` and commit the regenerated `frontend/openapi.json` and `frontend/src/lib/api-types.ts`. CI fails on drift.
 
 ### Backend (standalone)
 

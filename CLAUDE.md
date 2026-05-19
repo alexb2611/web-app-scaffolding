@@ -133,6 +133,23 @@ All endpoints are under `/api/v1/`:
 
 **Refresh-token model:** server-side state in `refresh_tokens` table tracks `jti`, family lineage (`replaced_by_id`), and revocation. Presenting a previously-rotated token is treated as compromise and revokes the entire family (per OAuth 2.0 RFC 6819 §5.2.2.3).
 
+## Typed API client
+
+The frontend uses **`openapi-fetch`** with types generated from the backend's OpenAPI schema. Every call site has full path/body/response inference:
+
+```typescript
+const tokens = await unwrap(client.POST("/api/v1/auth/login", { body: { email, password } }));
+```
+
+**Source of truth:** `frontend/openapi.json` is the committed schema; `frontend/src/lib/api-types.ts` is generated from it. CI fails if either is out of date.
+
+**Workflow when changing the backend contract:**
+1. Add/modify routes or Pydantic schemas in `backend/app/`.
+2. Run `make generate-api` (or `python backend/scripts/export_openapi.py && cd frontend && npm run generate:api`).
+3. Commit `frontend/openapi.json` + `frontend/src/lib/api-types.ts` alongside the backend change.
+
+Call sites use `unwrap()` from `@/lib/api` to throw `ApiError` on non-2xx responses. The customFetch passed to `createClient` handles auth (Authorization header from in-memory access token), the `X-Request-ID` header, and 401 → refresh → retry.
+
 ## Logging
 
 Structured logging via `structlog` (configured in `app/core/logging.py`):
