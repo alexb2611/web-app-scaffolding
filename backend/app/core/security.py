@@ -1,5 +1,7 @@
 """JWT token and password hashing utilities."""
 
+import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -33,14 +35,35 @@ def create_access_token(subject: str, expires_delta: timedelta | None = None) ->
     return encoded
 
 
-def create_refresh_token(subject: str) -> str:
-    """Create a signed JWT refresh token with a longer expiry."""
-    expire = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
-    to_encode = {"sub": subject, "exp": expire, "type": "refresh"}
+@dataclass(frozen=True)
+class RefreshTokenIssued:
+    """A freshly minted refresh token plus the metadata to store server-side."""
+
+    token: str
+    jti: str
+    issued_at: datetime
+    expires_at: datetime
+
+
+def create_refresh_token(subject: str) -> RefreshTokenIssued:
+    """Mint a refresh JWT with a unique `jti` and return the storage metadata."""
+    jti = str(uuid.uuid4())
+    issued_at = datetime.now(UTC)
+    expires_at = issued_at + timedelta(days=settings.refresh_token_expire_days)
     encoded: str = jwt.encode(
-        to_encode, settings.secret_key, algorithm=settings.algorithm
+        {
+            "sub": subject,
+            "exp": expires_at,
+            "iat": issued_at,
+            "jti": jti,
+            "type": "refresh",
+        },
+        settings.secret_key,
+        algorithm=settings.algorithm,
     )
-    return encoded
+    return RefreshTokenIssued(
+        token=encoded, jti=jti, issued_at=issued_at, expires_at=expires_at
+    )
 
 
 def decode_token(token: str) -> dict[str, Any]:
@@ -53,6 +76,7 @@ def decode_token(token: str) -> dict[str, Any]:
 
 __all__ = [
     "JWTError",
+    "RefreshTokenIssued",
     "create_access_token",
     "create_refresh_token",
     "decode_token",

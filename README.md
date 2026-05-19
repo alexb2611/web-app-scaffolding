@@ -67,10 +67,13 @@ All endpoints are under `/api/v1/`:
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | `POST` | `/auth/register` | Create account | No |
-| `POST` | `/auth/login` | Get access + refresh tokens | No |
-| `POST` | `/auth/refresh` | Refresh token pair | No |
+| `POST` | `/auth/login` | Returns access token; sets HttpOnly refresh cookie | No |
+| `POST` | `/auth/refresh` | Rotates refresh cookie; returns new access token | Cookie |
+| `POST` | `/auth/logout` | Revokes refresh-token chain, clears cookies | Cookie |
 | `GET` | `/auth/me` | Current user profile | Bearer |
 | `GET` | `/health` | Health check | No |
+
+The refresh token is delivered via an `HttpOnly; Secure; SameSite` cookie scoped to `/api/v1/auth` — it is never returned in a response body and is invisible to JavaScript. A separate non-sensitive `auth_present=1` cookie lets the Next.js middleware know whether to redirect, without carrying any credential value. Refresh tokens are rotated on every use; presenting a previously-rotated token revokes the entire token family.
 
 ## Development
 

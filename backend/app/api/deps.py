@@ -1,5 +1,6 @@
 """FastAPI dependency for extracting the current user from a JWT token."""
 
+import structlog
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
@@ -35,4 +36,5 @@ async def get_current_user(
     user = await get_user_by_email(db, email)
     if user is None or not user.is_active:
         raise credentials_exception
+    structlog.contextvars.bind_contextvars(user_id=user.id)
     return user

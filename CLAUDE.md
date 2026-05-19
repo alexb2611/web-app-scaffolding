@@ -125,7 +125,18 @@ All config is in `.env` (copied from `.env.example`). Key variables:
 
 All endpoints are under `/api/v1/`:
 - `POST /api/v1/auth/register` — Create account
-- `POST /api/v1/auth/login` — Get access + refresh tokens
-- `POST /api/v1/auth/refresh` — Refresh token pair
+- `POST /api/v1/auth/login` — Returns access token in body; sets refresh token as HttpOnly cookie + `auth_present` flag cookie
+- `POST /api/v1/auth/refresh` — Rotates the refresh-token cookie; returns new access token in body
+- `POST /api/v1/auth/logout` — Revokes the refresh-token chain and clears cookies (204)
 - `GET /api/v1/auth/me` — Current user profile (requires auth)
 - `GET /api/v1/health` — Health check
+
+**Refresh-token model:** server-side state in `refresh_tokens` table tracks `jti`, family lineage (`replaced_by_id`), and revocation. Presenting a previously-rotated token is treated as compromise and revokes the entire family (per OAuth 2.0 RFC 6819 §5.2.2.3).
+
+## Logging
+
+Structured logging via `structlog` (configured in `app/core/logging.py`):
+- Dev: `ConsoleRenderer` (pretty + colored). Prod (`ENVIRONMENT=production`): `JSONRenderer`.
+- `RequestContextMiddleware` honors incoming `X-Request-ID` or mints a UUID; binds `request_id`, `method`, `path` to `structlog.contextvars`. The ID is echoed back in the response header (`X-Request-ID`) and the frontend surfaces it on `ApiError.requestId`.
+- `get_current_user` binds `user_id` once auth resolves, so all downstream logs in that request carry it.
+- One `http.request` access log per request with `status` + `duration_ms`. Auth events: `auth.register.success`, `auth.login.success`/`auth.login.failed`, `auth.refresh.success`/`auth.refresh.invalid`/`auth.refresh.reuse_detected` (WARNING — security signal), `auth.logout.success`.

@@ -17,6 +17,7 @@ dependencies = [
     "httpx>=0.28,<1",
     "psycopg2-binary>=2.9,<3",
     "slowapi>=0.1.9,<1",
+    "structlog>=25.1,<26",
 ]
 
 [project.optional-dependencies]
@@ -73,6 +74,11 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# Share one event loop across the session so the async engine's connection
+# pool stays valid across tests — otherwise asyncpg connections leak across
+# loops and raise "another operation is in progress".
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
 filterwarnings = ["ignore::DeprecationWarning"]
 

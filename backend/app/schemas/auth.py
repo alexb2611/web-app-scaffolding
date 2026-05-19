@@ -7,13 +7,10 @@ from pydantic import BaseModel, EmailStr
 # Auth
 # ---------------------------------------------------------------------------
 class TokenResponse(BaseModel):
+    """Login / refresh response — refresh token is delivered via HttpOnly cookie."""
+
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
-
-
-class TokenRefreshRequest(BaseModel):
-    refresh_token: str
 
 
 # ---------------------------------------------------------------------------

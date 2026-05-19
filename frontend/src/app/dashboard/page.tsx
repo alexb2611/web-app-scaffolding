@@ -35,8 +35,8 @@ export default function DashboardPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => {
-            logout();
+          onClick={async () => {
+            await logout();
             router.push("/login");
           }}
         >

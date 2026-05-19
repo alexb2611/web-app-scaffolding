@@ -8,7 +8,10 @@ const AUTH_PAGES = ["/login", "/register"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const hasToken = request.cookies.has("auth-token");
+  // `auth_present` is a non-sensitive flag set alongside the HttpOnly
+  // `refresh_token` cookie. It carries no credential value — it just lets
+  // the middleware know whether to redirect.
+  const hasToken = request.cookies.has("auth_present");
 
   // Redirect unauthenticated users away from protected routes
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));

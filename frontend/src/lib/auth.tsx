@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import { api, clearTokens, getAccessToken, setTokens } from "./api";
+import { api, bootstrapSession, setAccessToken } from "./api";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -29,7 +29,7 @@ interface AuthState {
 interface AuthActions {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName?: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 type AuthContextValue = AuthState & AuthActions;
@@ -46,9 +46,8 @@ export function useAuth(): AuthContextValue {
 
 // ── Provider ───────────────────────────────────────────────────────────
 
-interface TokenResponse {
+interface LoginResponse {
   access_token: string;
-  refresh_token: string;
   token_type: string;
 }
 
@@ -56,9 +55,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch the current user profile using the stored token
-  const loadUser = useCallback(async () => {
-    if (!getAccessToken()) {
+  // On mount, exchange the HttpOnly refresh cookie for a fresh in-memory
+  // access token, then fetch the user profile.
+  const bootstrap = useCallback(async () => {
+    const ok = await bootstrapSession();
+    if (!ok) {
       setUser(null);
       setIsLoading(false);
       return;
@@ -67,7 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = await api.get<User>("/api/v1/auth/me");
       setUser(u);
     } catch {
-      clearTokens();
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -75,20 +75,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    loadUser();
-  }, [loadUser]);
+    bootstrap();
+  }, [bootstrap]);
 
-  const login = useCallback(
-    async (email: string, password: string) => {
-      const tokens = await api.post<TokenResponse>("/api/v1/auth/login", {
-        email,
-        password,
-      });
-      setTokens(tokens.access_token, tokens.refresh_token);
-      await loadUser();
-    },
-    [loadUser],
-  );
+  const login = useCallback(async (email: string, password: string) => {
+    const res = await api.post<LoginResponse>("/api/v1/auth/login", {
+      email,
+      password,
+    });
+    setAccessToken(res.access_token);
+    const u = await api.get<User>("/api/v1/auth/me");
+    setUser(u);
+  }, []);
 
   const register = useCallback(
     async (email: string, password: string, fullName?: string) => {
@@ -97,14 +95,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         full_name: fullName || null,
       });
-      // Auto-login after registration
       await login(email, password);
     },
     [login],
   );
 
-  const logout = useCallback(() => {
-    clearTokens();
+  const logout = useCallback(async () => {
+    try {
+      await api.post("/api/v1/auth/logout");
+    } catch {
+      // Even if the call fails, clear local state.
+    }
+    setAccessToken(null);
     setUser(null);
   }, []);
 
