@@ -124,6 +124,15 @@ Browser-driven auth flow tests live in `frontend/e2e/`. They run against the liv
 - **Isolation:** each test generates a unique email via the `uniqueEmail(label)` helper so the suite is parallel-safe and re-runnable on a non-clean DB.
 - **CI:** the `e2e` job in `.github/workflows/ci.yml` brings the full stack up, runs the suite, and uploads `playwright-report/` as an artifact on failure.
 
+## Forms (react-hook-form + Zod)
+
+Form state is managed by **react-hook-form**, validated by **Zod** schemas via `@hookform/resolvers/zod`. Schemas for the auth forms live in `frontend/src/lib/auth-schemas.ts`.
+
+- **Type alignment with the API contract:** each form schema has an `_AssertX = z.infer<typeof schema> extends components["schemas"]["..."] ? true : never` line — if the OpenAPI contract drifts, the assertion resolves to `never` and TypeScript fails the build. This is how the typed-end-to-end story stays honest from form input through API response.
+- **Convention:** call `useForm` with `resolver: zodResolver(schema)` and `mode: "onTouched"`. Use `register("field")` on inputs and `errors.field?.message` for inline display. Add `aria-invalid` and `aria-describedby` on inputs that can show an error.
+- **Top-level vs field errors:** keep a single `setApiError` state for API-side failures (bad credentials, server down) rendered inside a `<div role="alert">`. Field-level errors come from RHF and live under each input.
+- **Don't transform in the schema:** if the output type differs from the input type (`.transform()`, `.pipe()` to a coerced schema, etc.), RHF's `Resolver<TIn, ?, TOut>` becomes awkward. Do post-parse coercion in the submit handler instead (e.g. empty-string → `undefined`).
+
 ## Environment Variables
 
 All config is in `.env` (copied from `.env.example`). Key variables:

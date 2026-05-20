@@ -1,10 +1,14 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
+import { registerSchema, type RegisterInput } from "@/lib/auth-schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,25 +23,28 @@ import {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { register: registerUser } = useAuth();
+  const [apiError, setApiError] = useState("");
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError("");
-    setIsSubmitting(true);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterInput>({
+    resolver: zodResolver(registerSchema),
+    mode: "onTouched",
+  });
 
+  async function onSubmit(values: RegisterInput): Promise<void> {
+    setApiError("");
     try {
-      await register(email, password, fullName || undefined);
+      // Coerce empty `full_name` to undefined so we don't POST an empty
+      // string for an unspecified field.
+      const fullName = values.full_name?.trim() || undefined;
+      await registerUser(values.email, values.password, fullName);
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof ApiError ? err.detail : "Something went wrong");
-    } finally {
-      setIsSubmitting(false);
+      setApiError(err instanceof ApiError ? err.detail : "Something went wrong");
     }
   }
 
@@ -49,26 +56,35 @@ export default function RegisterPage() {
           <CardDescription>Sign up to get started</CardDescription>
         </CardHeader>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <CardContent className="space-y-4">
-            {error && (
-              <div className="bg-destructive/10 text-destructive rounded-md px-4 py-3 text-sm">
-                {error}
+            {apiError && (
+              <div
+                role="alert"
+                className="bg-destructive/10 text-destructive rounded-md px-4 py-3 text-sm"
+              >
+                {apiError}
               </div>
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="fullName">
+              <Label htmlFor="full_name">
                 Full name{" "}
                 <span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
               <Input
-                id="fullName"
+                id="full_name"
                 type="text"
                 autoComplete="name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                aria-invalid={errors.full_name ? "true" : "false"}
+                aria-describedby={errors.full_name ? "full_name-error" : undefined}
+                {...register("full_name")}
               />
+              {errors.full_name && (
+                <p id="full_name-error" className="text-destructive text-sm">
+                  {errors.full_name.message}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -76,12 +92,17 @@ export default function RegisterPage() {
               <Input
                 id="email"
                 type="email"
-                required
                 autoComplete="email"
                 placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                aria-invalid={errors.email ? "true" : "false"}
+                aria-describedby={errors.email ? "email-error" : undefined}
+                {...register("email")}
               />
+              {errors.email && (
+                <p id="email-error" className="text-destructive text-sm">
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -89,12 +110,16 @@ export default function RegisterPage() {
               <Input
                 id="password"
                 type="password"
-                required
-                minLength={8}
                 autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                aria-invalid={errors.password ? "true" : "false"}
+                aria-describedby={errors.password ? "password-error" : undefined}
+                {...register("password")}
               />
+              {errors.password && (
+                <p id="password-error" className="text-destructive text-sm">
+                  {errors.password.message}
+                </p>
+              )}
             </div>
           </CardContent>
 

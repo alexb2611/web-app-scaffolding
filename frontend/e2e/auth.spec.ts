@@ -100,6 +100,54 @@ test.describe("login", () => {
   });
 });
 
+test.describe("inline validation", () => {
+  test("register form blocks submit on empty fields and shows field errors", async ({
+    page,
+  }) => {
+    // The form is client-validated via zod + react-hook-form, so a
+    // submit with no input must show field errors and never reach the
+    // backend. We assert on the lack of a network request to confirm.
+    const apiCalls: string[] = [];
+    page.on("request", (req) => {
+      if (req.url().includes("/api/v1/auth/register")) apiCalls.push(req.url());
+    });
+
+    await page.goto("/register");
+    await page.getByRole("button", { name: /create account/i }).click();
+
+    await expect(page.getByText(/email is required/i)).toBeVisible();
+    await expect(
+      page.getByText(/password must be at least 8 characters/i),
+    ).toBeVisible();
+
+    // Still on the register page, never POSTed to /api/v1/auth/register.
+    await expect(page).toHaveURL(/\/register$/);
+    expect(apiCalls).toHaveLength(0);
+  });
+
+  test("register form rejects short passwords with inline error", async ({ page }) => {
+    await page.goto("/register");
+    await page.getByLabel("Email").fill("inline-validation@example.com");
+    await page.getByLabel("Password").fill("short");
+    await page.getByRole("button", { name: /create account/i }).click();
+
+    await expect(
+      page.getByText(/password must be at least 8 characters/i),
+    ).toBeVisible();
+    await expect(page).toHaveURL(/\/register$/);
+  });
+
+  test("login form rejects malformed emails inline", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByLabel("Email").fill("not-an-email");
+    await page.getByLabel("Password").fill("anything");
+    await page.getByRole("button", { name: /^sign in$/i }).click();
+
+    await expect(page.getByText(/enter a valid email/i)).toBeVisible();
+    await expect(page).toHaveURL(/\/login(?:\?|$)/);
+  });
+});
+
 test.describe("logout", () => {
   test("clears the session — visiting /dashboard now redirects to /login", async ({
     page,
