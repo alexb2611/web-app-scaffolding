@@ -2,7 +2,7 @@
 # Makefile — common development shortcuts
 # ---------------------------------------------------------------------------
 
-.PHONY: dev down build logs migrate test test-e2e lint format clean generate-api install-hooks hooks
+.PHONY: dev down build logs migrate test test-unit test-unit-watch test-e2e test-e2e-ui lint format clean generate-api install-hooks hooks
 
 # Start all services
 dev:
@@ -47,6 +47,7 @@ migrate-down:
 
 test:
 	docker compose exec backend pytest -v
+	cd frontend && npm run test:unit
 	cd frontend && npm run typecheck
 
 test-backend:
@@ -54,6 +55,14 @@ test-backend:
 
 test-cov:
 	docker compose exec backend pytest --cov=app --cov-report=term-missing
+
+# Fast pure-logic unit tests via Vitest (no DOM, no browser).
+test-unit:
+	cd frontend && npm run test:unit
+
+# Vitest in watch mode — re-runs on file change.
+test-unit-watch:
+	cd frontend && npm run test:unit:watch
 
 # End-to-end browser tests via Playwright. Requires the compose stack to
 # already be running (`make dev`) with RATE_LIMIT_ENABLED=false in .env.

@@ -128,7 +128,27 @@ make format       # Format both backend and frontend
 - **If a hook autofixes (ruff/black):** the commit fails with files modified in your working tree. Run `git add -u && git commit` to re-commit with the fixes.
 - **If a check-only hook fails (prettier/eslint):** run `make format` (prettier) or fix the eslint complaint, then re-commit. We don't autofix frontend files because the npm scripts target the whole dir, which would touch unstaged files.
 
-## End-to-end tests (Playwright)
+## Frontend testing layers
+
+Three non-overlapping layers, each with a clear job:
+
+| Tool | Scope | Where |
+| --- | --- | --- |
+| **TypeScript** (`tsc --noEmit`) | Type drift between layers (API types ↔ Zod ↔ form ↔ UI) | every save / commit |
+| **Vitest** | Pure logic — schema validation edges, single-flight refresh, utility functions. Node env, no DOM. | `frontend/src/**/*.test.ts` |
+| **Playwright** | UI behavior end-to-end through real browser + real backend | `frontend/e2e/` |
+
+**Choosing between Vitest and Playwright** — if the test needs a browser, real network, or real cookies, it's a Playwright case. If it's pure logic that you can describe with mocks and assertions, it's a Vitest case. When in doubt, lean Vitest — it's orders of magnitude faster and you can run it on every save.
+
+### Unit tests (Vitest)
+
+- **Run locally:** `make test-unit` (one-shot) or `make test-unit-watch` (re-runs on save). Direct: `cd frontend && npm run test:unit`.
+- **Colocated**: `auth-schemas.ts` lives next to `auth-schemas.test.ts`. Vitest's `include` pattern is `src/**/*.test.ts`.
+- **Explicit imports**: `import { describe, it, expect, vi } from "vitest"` — no magic globals. Matches the project's TS-strict ethos.
+- **Mock the global `fetch`** for any test exercising network logic via `vi.stubGlobal("fetch", fn)` + `vi.unstubAllGlobals()` in `afterEach`. The single-flight refresh test in `api.test.ts` is the canonical pattern.
+- **Component testing is intentionally not set up.** If a future contributor needs it, install `@testing-library/react` + `jsdom` and switch a single file's environment via `// @vitest-environment jsdom` directive at the top.
+
+### End-to-end tests (Playwright)
 
 Browser-driven auth flow tests live in `frontend/e2e/`. They run against the live docker-compose stack and cover the path pytest can't reach (Next.js proxy + cookies + middleware redirects).
 

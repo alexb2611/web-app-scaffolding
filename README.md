@@ -120,7 +120,9 @@ make dev              # docker compose up --build
 make down             # docker compose down
 make clean            # docker compose down -v (full reset)
 make migrate MSG="description"  # Generate + apply Alembic migration
-make test             # Run all tests
+make test             # Backend pytest + frontend Vitest + typecheck
+make test-unit        # Frontend Vitest only (fast pure-logic tests)
+make test-e2e         # Playwright (requires `make dev` + RATE_LIMIT_ENABLED=false)
 make lint             # Lint backend + frontend
 make format           # Format backend + frontend
 make typecheck        # Type check backend + frontend
@@ -163,6 +165,17 @@ npm run lint          # ESLint
 npm run typecheck     # TypeScript check
 npm run format        # Prettier
 ```
+
+### Frontend unit tests (Vitest)
+
+Fast pure-logic tests live next to the modules they cover (`src/lib/foo.ts` → `src/lib/foo.test.ts`). Scope is **logic Playwright can't easily exercise**: schema validation edges, retry/coordination invariants, utility functions. Node environment, no DOM.
+
+```bash
+make test-unit          # one-shot
+make test-unit-watch    # re-runs on save
+```
+
+The canonical example is `src/lib/api.test.ts` — verifies the single-flight refresh invariant in `tryRefresh` (under parallel pressure, only one `/refresh` call hits the network) by mocking `globalThis.fetch` and stashing the unresolved promise to control timing. That coordination invariant is hard to provoke from a browser test and is the load-bearing case for this layer.
 
 ### End-to-end tests (Playwright)
 
@@ -224,7 +237,7 @@ GitHub Actions runs on every push and PR to `main`. All jobs must pass:
 |-----|--------|
 | **Pre-commit** | Same hooks devs run on `git commit` — hygiene, ruff, black, prettier, eslint |
 | **Backend** | `ruff check .` · `black --check .` · `mypy .` · `pytest` (with PostgreSQL service) |
-| **Frontend** | `npm run lint` · `npm run typecheck` · `npm run format:check` · `npm run build` |
+| **Frontend** | `npm run lint` · `npm run typecheck` · `npm run format:check` · `npm run test:unit` (Vitest) · `npm run build` |
 | **API contract** | Regenerates OpenAPI schema + TS types from the live backend and fails on drift |
 | **E2E** | Boots full docker-compose stack and runs Playwright auth suite against it. Uploads `playwright-report/` on failure |
 
