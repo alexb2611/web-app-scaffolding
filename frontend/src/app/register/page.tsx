@@ -11,7 +11,6 @@ import { ApiError } from "@/lib/api";
 import { registerSchema, type RegisterInput } from "@/lib/auth-schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -20,19 +19,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { register: registerUser } = useAuth();
   const [apiError, setApiError] = useState("");
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<RegisterInput>({
+  const form = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
     mode: "onTouched",
+    defaultValues: { email: "", password: "", full_name: "" },
   });
 
   async function onSubmit(values: RegisterInput): Promise<void> {
@@ -56,88 +60,91 @@ export default function RegisterPage() {
           <CardDescription>Sign up to get started</CardDescription>
         </CardHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} noValidate>
-          <CardContent className="space-y-4">
-            {apiError && (
-              <div
-                role="alert"
-                className="bg-destructive/10 text-destructive rounded-md px-4 py-3 text-sm"
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
+            <CardContent className="space-y-4">
+              {apiError && (
+                <div
+                  role="alert"
+                  className="bg-destructive/10 text-destructive rounded-md px-4 py-3 text-sm"
+                >
+                  {apiError}
+                </div>
+              )}
+
+              <FormField
+                control={form.control}
+                name="full_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Full name{" "}
+                      <span className="text-muted-foreground font-normal">
+                        (optional)
+                      </span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="text" autoComplete="name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        autoComplete="email"
+                        placeholder="you@example.com"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" autoComplete="new-password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+
+            <CardFooter className="flex flex-col gap-4">
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={form.formState.isSubmitting}
               >
-                {apiError}
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="full_name">
-                Full name{" "}
-                <span className="text-muted-foreground font-normal">(optional)</span>
-              </Label>
-              <Input
-                id="full_name"
-                type="text"
-                autoComplete="name"
-                aria-invalid={errors.full_name ? "true" : "false"}
-                aria-describedby={errors.full_name ? "full_name-error" : undefined}
-                {...register("full_name")}
-              />
-              {errors.full_name && (
-                <p id="full_name-error" className="text-destructive text-sm">
-                  {errors.full_name.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                aria-invalid={errors.email ? "true" : "false"}
-                aria-describedby={errors.email ? "email-error" : undefined}
-                {...register("email")}
-              />
-              {errors.email && (
-                <p id="email-error" className="text-destructive text-sm">
-                  {errors.email.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="new-password"
-                aria-invalid={errors.password ? "true" : "false"}
-                aria-describedby={errors.password ? "password-error" : undefined}
-                {...register("password")}
-              />
-              {errors.password && (
-                <p id="password-error" className="text-destructive text-sm">
-                  {errors.password.message}
-                </p>
-              )}
-            </div>
-          </CardContent>
-
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Creating account…" : "Create account"}
-            </Button>
-            <p className="text-muted-foreground text-center text-sm">
-              Already have an account?{" "}
-              <Link
-                href="/login"
-                className="text-primary underline underline-offset-4 hover:opacity-80"
-              >
-                Sign in
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
+                {form.formState.isSubmitting ? "Creating account…" : "Create account"}
+              </Button>
+              <p className="text-muted-foreground text-center text-sm">
+                Already have an account?{" "}
+                <Link
+                  href="/login"
+                  className="text-primary underline underline-offset-4 hover:opacity-80"
+                >
+                  Sign in
+                </Link>
+              </p>
+            </CardFooter>
+          </form>
+        </Form>
       </Card>
     </main>
   );
