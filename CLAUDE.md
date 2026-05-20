@@ -4,6 +4,8 @@
 
 Full-stack web application scaffolding with FastAPI (Python) backend and Next.js (TypeScript) frontend, designed for rapid project bootstrapping.
 
+> **Adding a new feature?** Read [`docs/adding-a-feature.md`](docs/adding-a-feature.md) first — it's the canonical recipe for adding a user-owned CRUD resource end-to-end (model → migration → service → route → tests → OpenAPI export → Zod schema → form → E2E). The numbered checklist there is the source of truth for the ordering and the conventions; this file documents the building blocks.
+
 ## Tech Stack
 
 - **Backend:** FastAPI 0.115+, SQLAlchemy 2.0 (async), PostgreSQL 16, Alembic, Pydantic v2
