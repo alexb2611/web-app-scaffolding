@@ -9,7 +9,7 @@ Full-stack web application scaffolding designed for rapid project bootstrapping 
 | **Backend** | FastAPI, SQLAlchemy 2.0 (async), PostgreSQL 16, Alembic, Pydantic v2 |
 | **Frontend** | Next.js 15 (App Router), React 19, TypeScript 5.7, Tailwind CSS 4, shadcn/ui |
 | **Auth** | JWT access + refresh tokens, bcrypt password hashing, rate-limited endpoints |
-| **Infra** | Docker Compose, multi-stage Dockerfiles, GitHub Actions CI |
+| **Infra** | Docker Compose, multi-stage Dockerfiles (separate dev/runtime targets), GitHub Actions CI |
 
 ## Quick Start
 
@@ -76,6 +76,22 @@ All endpoints are under `/api/v1/`:
 The refresh token is delivered via an `HttpOnly; Secure; SameSite` cookie scoped to `/api/v1/auth` — it is never returned in a response body and is invisible to JavaScript. A separate non-sensitive `auth_present=1` cookie lets the Next.js middleware know whether to redirect, without carrying any credential value. Refresh tokens are rotated on every use; presenting a previously-rotated token revokes the entire token family.
 
 ## Development
+
+### Dev vs production images
+
+Both the backend and frontend Dockerfiles are multi-stage with two named targets:
+
+| Target | Used by | Contents |
+| --- | --- | --- |
+| `dev` | `docker compose up` (local development) | All runtime deps **plus** dev tools (`pytest`, `ruff`, `black`, `mypy` on the backend) and `uvicorn --reload` |
+| `runtime` | The default target — what `docker build` produces with no flag, and what you'd push to a registry | Runtime deps only. No dev tools, no build chain, runs as a non-root user |
+
+So `make test`, `make lint`, `make typecheck`, etc. all work against the running compose stack without any extra setup. To explicitly build a slim production image:
+
+```bash
+docker build --target runtime -t web-app-backend:prod ./backend
+docker build --target runtime -t web-app-frontend:prod ./frontend
+```
 
 ### Make shortcuts
 

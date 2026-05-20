@@ -43,6 +43,8 @@ docker compose up --build      # Start all services
 docker compose down            # Stop all services
 ```
 
+Both backend and frontend Dockerfiles are multi-stage with a `dev` target (used by `docker-compose`) and a `runtime` target (the default — what production builds). The backend `dev` target installs `[dev]` extras (pytest, ruff, black, mypy) and runs `uvicorn --reload`; `runtime` is the slim production image with none of those tools. This means `make test` / `make lint` / `make typecheck` work against the live compose stack without any extra setup.
+
 ### Backend (standalone)
 Requires a Python 3.12+ venv and a local PostgreSQL. Set `DATABASE_URL` in `.env` to use `localhost` instead of `db`.
 ```bash

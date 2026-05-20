@@ -35,6 +35,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      target: dev
     restart: unless-stopped
     env_file: .env
     environment:
