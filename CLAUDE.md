@@ -115,6 +115,17 @@ make format       # Format both backend and frontend
 - **Test before commit:** Always run tests and ensure they pass before committing. For backend: `pytest`; for frontend: `npm run typecheck && npm run lint`. Never commit with failing tests.
 - **Lint before commit:** Run linting (`ruff check .` for backend, `npm run lint` for frontend) and fix any issues before committing.
 
+## Pre-commit hooks
+
+`.pre-commit-config.yaml` runs hygiene + ruff + black + prettier + eslint on every `git commit`. Full-tree run is ~4.5s.
+
+- **One-time install:** `make install-hooks` (requires `pre-commit` on PATH — `pip install pre-commit` or `pipx install pre-commit`)
+- **Manual run:** `make hooks` (same thing CI's `pre-commit` job does)
+- **What runs locally:** hygiene hooks (whitespace, EOL, YAML/TOML, merge markers, large files) + ruff (autofix) + black (autofix) + prettier `format:check` + `npm run lint`
+- **What's intentionally *not* in pre-commit:** mypy, pytest, `tsc --noEmit`, Playwright. They're slower and CI catches them. Keeping the hook budget under 10s prevents people reaching for `--no-verify`.
+- **If a hook autofixes (ruff/black):** the commit fails with files modified in your working tree. Run `git add -u && git commit` to re-commit with the fixes.
+- **If a check-only hook fails (prettier/eslint):** run `make format` (prettier) or fix the eslint complaint, then re-commit. We don't autofix frontend files because the npm scripts target the whole dir, which would touch unstaged files.
+
 ## End-to-end tests (Playwright)
 
 Browser-driven auth flow tests live in `frontend/e2e/`. They run against the live docker-compose stack and cover the path pytest can't reach (Next.js proxy + cookies + middleware redirects).

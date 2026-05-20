@@ -77,6 +77,22 @@ The refresh token is delivered via an `HttpOnly; Secure; SameSite` cookie scoped
 
 ## Development
 
+### Pre-commit hooks (recommended one-time setup)
+
+A `pre-commit` config (`.pre-commit-config.yaml`) catches the fastest CI failures locally — hygiene checks (trailing whitespace, EOL, YAML/TOML syntax, large files), `ruff` lint + autofix, `black` format, `prettier` format check, `eslint`. A full run takes ~4.5s, incremental commits faster.
+
+```bash
+# One-time install. Requires `pre-commit` on PATH —
+# either `pip install pre-commit` / `pipx install pre-commit`,
+# or via `pip install -e backend[dev]` if you've set up a host venv.
+make install-hooks
+
+# Run all hooks against every tracked file (same thing CI does):
+make hooks
+```
+
+Slower gates (mypy, pytest, `tsc --noEmit`, Playwright) live in CI only — the pre-commit budget is < 10s so nobody is tempted to `--no-verify`. The `pre-commit` CI job runs the same hooks against `--all-files`, so bypassing locally still fails at PR time.
+
 ### Dev vs production images
 
 Both the backend and frontend Dockerfiles are multi-stage with two named targets:
@@ -202,6 +218,7 @@ GitHub Actions runs on every push and PR to `main`. All jobs must pass:
 
 | Job | Checks |
 |-----|--------|
+| **Pre-commit** | Same hooks devs run on `git commit` — hygiene, ruff, black, prettier, eslint |
 | **Backend** | `ruff check .` · `black --check .` · `mypy .` · `pytest` (with PostgreSQL service) |
 | **Frontend** | `npm run lint` · `npm run typecheck` · `npm run format:check` · `npm run build` |
 | **API contract** | Regenerates OpenAPI schema + TS types from the live backend and fails on drift |
