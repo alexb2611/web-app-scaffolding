@@ -104,7 +104,13 @@ hooks:
 
 # Regenerate frontend/openapi.json + src/lib/api-types.ts from the backend.
 # Run this after any change to the FastAPI routes or Pydantic schemas, then
-# commit the regenerated files. CI fails on drift.
+# commit the regenerated files. Don't forget to bump backend/pyproject.toml's
+# `version` — CI fails any PR that changes openapi.json without a version bump.
+#
+# The `-` argument tells the script to write to stdout; the redirect lands
+# the bytes on the host's bind mount. Doing it this way sidesteps the path-
+# resolution gotcha where `Path(__file__).resolve().parents[2]` inside the
+# container resolves to `/`, not the repo root.
 generate-api:
-	docker compose exec backend python scripts/export_openapi.py
+	docker compose exec -T backend python scripts/export_openapi.py - > frontend/openapi.json
 	cd frontend && npm run generate:api

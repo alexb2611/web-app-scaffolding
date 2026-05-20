@@ -1,6 +1,11 @@
 [project]
 name = "app"
-version = "0.1.0"
+# Bump on any change that alters the OpenAPI surface — new endpoints,
+# renamed fields, changed status codes, etc. Read at runtime via
+# `importlib.metadata.version("app")` and surfaced as the OpenAPI
+# schema's `info.version`. CI's `api-contract` job fails any PR that
+# changes `frontend/openapi.json` without also changing this value.
+version = "0.2.0"
 description = "Web application backend"
 requires-python = ">=3.12"
 dependencies = [

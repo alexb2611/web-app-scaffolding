@@ -19,7 +19,8 @@ Backend
   [ ] 7. Tests        — backend/tests/test_<feature>.py
 
 Contract handoff
-  [ ] 8. Regenerate   — make generate-api  (commits openapi.json + api-types.ts)
+  [ ] 8a. Version bump — backend/pyproject.toml [project] version
+  [ ] 8b. Regenerate   — make generate-api  (commits openapi.json + api-types.ts)
 
 Frontend
   [ ] 9. Zod schema   — frontend/src/lib/<feature>-schemas.ts (with _Assert*)
@@ -365,15 +366,26 @@ async def test_cannot_read_another_users_note(client: AsyncClient) -> None:
 
 The `_reset_schema` autouse fixture in `conftest.py` already drops and recreates tables between tests, so each test starts clean without the writer doing anything.
 
-## 8. Regenerate the API contract — DO NOT SKIP
+## 8. Bump the version AND regenerate the API contract — DO NOT SKIP
 
 ```bash
+# 1. Bump backend/pyproject.toml's [project] version. Semver against the
+#    OpenAPI surface: major for breaking changes, minor for additive, patch
+#    for internal fixes that don't change the public shape. Adding a Notes
+#    resource is additive — bump the minor.
+
+# 2. Regenerate the contract and TS types.
 make generate-api
 ```
 
-This exports `backend/openapi.json` from the live FastAPI app and regenerates `frontend/src/lib/api-types.ts`. **Both files must be committed alongside your backend changes** — the `api-contract` CI job runs the regeneration and fails on drift.
+This exports `frontend/openapi.json` from the live FastAPI app (with the new `info.version`) and regenerates `frontend/src/lib/api-types.ts`. **All three files — `backend/pyproject.toml`, `frontend/openapi.json`, `frontend/src/lib/api-types.ts` — must be committed together** with your backend changes.
 
-If you forget this step, the frontend Zod schemas in step 9 won't compile (they reference `components["schemas"]["NoteCreate"]` which won't exist) and you'll be confused for a few minutes wondering why TypeScript thinks NoteCreate isn't a thing.
+CI enforces two invariants here:
+
+- **Drift check** — the regenerated schema must match what you committed (otherwise you forgot `make generate-api`).
+- **Version bump check** — if `frontend/openapi.json` differs from `main`'s, `info.version` must also differ (otherwise you forgot to bump `pyproject.toml`).
+
+If you skip the regen, the Zod schemas in step 9 won't compile — they reference `components["schemas"]["NoteCreate"]` which won't exist until the contract is regenerated.
 
 ## 9. Frontend Zod schema
 
@@ -589,6 +601,7 @@ All three must pass. Then commit and open the PR. CI will repeat the gates plus 
 | Cross-user CRUD test expects 404 but gets 403 | The route is doing `get_note(...)` then a separate authorisation check. Move the user_id filter into the query as in step 5 |
 | Playwright test 429s on the auth setup | `RATE_LIMIT_ENABLED=false` not set in `.env` — see `.env.example` |
 | `relation "notes" does not exist` at test time | Migration generated but not applied — `docker compose exec backend alembic upgrade head` |
+| CI `api-contract` job fails with "OpenAPI contract changed but info.version is still …" | Forgot step 8a — bump `backend/pyproject.toml`'s `[project] version`, then re-run `make generate-api` and commit |
 
 ## When to deviate from the recipe
 
