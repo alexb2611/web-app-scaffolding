@@ -162,6 +162,19 @@ cd frontend && npx playwright show-report   # browse last HTML report
 
 Each test generates a unique email so the suite is repeatable on a non-clean database and runs fully in parallel (~8s wall-clock for the auth suite). CI runs the same suite headless against a fresh compose stack and uploads `playwright-report/` as an artifact on failure.
 
+### Observability
+
+Both backend and frontend ship with hook points for OpenTelemetry traces and Sentry error tracking. **Everything is opt-in via env vars** — a default `cp .env.example .env` boot has no outbound telemetry.
+
+| Layer | What | Env to enable |
+| --- | --- | --- |
+| Backend traces | OTLP/HTTP — works with Tempo, Jaeger, Honeycomb, Datadog, etc. | `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` |
+| Backend traces (local dev visibility) | Spans printed to stdout — no collector needed | `OTEL_CONSOLE_EXPORTER=true` |
+| Backend errors | Sentry Python SDK | `SENTRY_DSN=https://...` |
+| Frontend errors | Sentry Next.js SDK (browser + server + edge) | `NEXT_PUBLIC_SENTRY_DSN=https://...` |
+
+When OpenTelemetry is on, every `structlog` log line gains `trace_id` and `span_id` fields, so logs and traces cross-reference cleanly in any aggregator. FastAPI, SQLAlchemy, asyncpg, and httpx are all auto-instrumented. Browser errors carry the same `X-Request-ID` the backend logs use (via `ApiError.requestId`), so a Sentry breadcrumb in the frontend can be matched to a structured log line on the backend.
+
 ### Adding shadcn/ui components
 
 ```bash

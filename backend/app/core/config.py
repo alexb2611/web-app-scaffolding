@@ -53,6 +53,21 @@ class Settings(BaseSettings):
     # and load tests that would otherwise trip the auth-endpoint throttles.
     rate_limit_enabled: bool = True
 
+    # ── Observability ───────────────────────────────────────────────────
+    # OpenTelemetry. The exporter only sends to a backend when an endpoint
+    # is configured; otherwise instrumentation is loaded but spans are
+    # silently dropped. `otel_console_exporter` adds a stdout span exporter
+    # for local development — useful for seeing the trace tree without a
+    # running Tempo/Jaeger.
+    otel_exporter_otlp_endpoint: str | None = None
+    otel_service_name: str | None = None  # defaults to app_name at boot
+    otel_console_exporter: bool = False
+
+    # Sentry. SDK only initialises if a DSN is set, so this is opt-in.
+    sentry_dsn: str | None = None
+    sentry_traces_sample_rate: float = 0.0  # 0.0 = errors only, no perf data
+    sentry_send_default_pii: bool = False  # opt-in only — names/emails/IPs
+
     # Database
     database_url: str = "postgresql+asyncpg://postgres:postgres@db:5432/myapp"
 

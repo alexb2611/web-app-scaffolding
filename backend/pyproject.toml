@@ -18,6 +18,19 @@ dependencies = [
     "psycopg2-binary>=2.9,<3",
     "slowapi>=0.1.9,<1",
     "structlog>=25.1,<26",
+    # ── Observability ───────────────────────────────────────────────────
+    # OpenTelemetry instrumentation is always loaded but exporters only
+    # send anywhere if OTEL_EXPORTER_OTLP_ENDPOINT is set. Sentry only
+    # initialises if SENTRY_DSN is set. So adding these deps has zero
+    # runtime cost on a default-config scaffold.
+    "opentelemetry-api>=1.30,<2",
+    "opentelemetry-sdk>=1.30,<2",
+    "opentelemetry-exporter-otlp-proto-http>=1.30,<2",
+    "opentelemetry-instrumentation-fastapi>=0.51b0,<1",
+    "opentelemetry-instrumentation-sqlalchemy>=0.51b0,<1",
+    "opentelemetry-instrumentation-asyncpg>=0.51b0,<1",
+    "opentelemetry-instrumentation-httpx>=0.51b0,<1",
+    "sentry-sdk[fastapi]>=2.0,<3",
 ]
 
 [project.optional-dependencies]

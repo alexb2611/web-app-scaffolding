@@ -12,6 +12,7 @@ from app.api.v1 import router as v1_router
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
+from app.core.observability import configure_observability
 from app.core.rate_limit import limiter
 from app.db.session import engine
 
@@ -59,6 +60,11 @@ def create_app() -> FastAPI:
 
     # Routes
     app.include_router(v1_router)
+
+    # Observability: OpenTelemetry + Sentry. Both opt-in via env. Called
+    # after middleware + routes so FastAPI instrumentation can see the
+    # final route table.
+    configure_observability(app)
 
     return app
 

@@ -168,3 +168,12 @@ Structured logging via `structlog` (configured in `app/core/logging.py`):
 - `RequestContextMiddleware` honors incoming `X-Request-ID` or mints a UUID; binds `request_id`, `method`, `path` to `structlog.contextvars`. The ID is echoed back in the response header (`X-Request-ID`) and the frontend surfaces it on `ApiError.requestId`.
 - `get_current_user` binds `user_id` once auth resolves, so all downstream logs in that request carry it.
 - One `http.request` access log per request with `status` + `duration_ms`. Auth events: `auth.register.success`, `auth.login.success`/`auth.login.failed`, `auth.refresh.success`/`auth.refresh.invalid`/`auth.refresh.reuse_detected` (WARNING — security signal), `auth.logout.success`.
+
+## Observability
+
+OpenTelemetry + Sentry hook points are wired in `app/core/observability.py` and `frontend/sentry.*.config.ts` / `frontend/instrumentation*.ts`. **All opt-in** — nothing fires without explicit env vars, so a default scaffold has no outbound telemetry.
+
+- **Backend traces:** set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` (or any OTLP/HTTP collector). Auto-instruments FastAPI, SQLAlchemy, asyncpg, httpx. For dev visibility without a collector, `OTEL_CONSOLE_EXPORTER=true` prints spans to stdout.
+- **Backend errors:** `SENTRY_DSN=...`. Defaults: `send_default_pii=False`, `traces_sample_rate=0.0` (errors only — bump explicitly to enable performance).
+- **Frontend errors:** `NEXT_PUBLIC_SENTRY_DSN=...`. Browser + Node + Edge all covered via Next.js's `instrumentation*.ts` convention.
+- **Trace/log correlation:** `inject_trace_context` is a structlog processor that surfaces `trace_id` / `span_id` on every log line whenever an OTel span is active. Combined with the existing `request_id` contextvar, you get full cross-referencing between logs, traces, and Sentry events.

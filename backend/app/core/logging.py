@@ -15,6 +15,7 @@ import sys
 import structlog
 
 from app.core.config import settings
+from app.core.observability import inject_trace_context
 
 
 def configure_logging() -> None:
@@ -29,6 +30,10 @@ def configure_logging() -> None:
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso", utc=True),
         structlog.processors.StackInfoRenderer(),
+        # OTel trace correlation — `trace_id`/`span_id` appear on every
+        # log line whenever an OTel span is active. With OTel disabled
+        # this is a single attribute lookup per log call, no overhead.
+        inject_trace_context,
     ]
 
     if is_production:
