@@ -30,9 +30,13 @@ logs:
 
 # --- Database ---
 
-# Generate and apply migration (provide MSG="description")
+# Generate and apply migration (provide MSG="description").
+# `-u $(id -u):$(id -g)` makes alembic write the new migration file owned
+# by the host user, so pre-commit / editors / chown-sensitive tools can
+# modify it. Without this the dev container's root user owns the file
+# and host-side tooling fails with a confusing permission error.
 migrate:
-	docker compose exec backend alembic revision --autogenerate -m "$(MSG)"
+	docker compose exec -u "$$(id -u):$$(id -g)" backend alembic revision --autogenerate -m "$(MSG)"
 	docker compose exec backend alembic upgrade head
 
 # Apply pending migrations
