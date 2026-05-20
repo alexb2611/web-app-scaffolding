@@ -137,13 +137,14 @@ Browser-driven auth flow tests live in `frontend/e2e/`. They run against the liv
 - **Isolation:** each test generates a unique email via the `uniqueEmail(label)` helper so the suite is parallel-safe and re-runnable on a non-clean DB.
 - **CI:** the `e2e` job in `.github/workflows/ci.yml` brings the full stack up, runs the suite, and uploads `playwright-report/` as an artifact on failure.
 
-## Forms (react-hook-form + Zod)
+## Forms (react-hook-form + Zod + shadcn Form block)
 
-Form state is managed by **react-hook-form**, validated by **Zod** schemas via `@hookform/resolvers/zod`. Schemas for the auth forms live in `frontend/src/lib/auth-schemas.ts`.
+Form state is managed by **react-hook-form**, validated by **Zod** schemas via `@hookform/resolvers/zod`, and rendered through the **shadcn `Form` block** at `frontend/src/components/ui/form.tsx`. Schemas for the auth forms live in `frontend/src/lib/auth-schemas.ts`. The canonical examples are `frontend/src/app/login/page.tsx` and `frontend/src/app/register/page.tsx`.
 
 - **Type alignment with the API contract:** each form schema has an `_AssertX = z.infer<typeof schema> extends components["schemas"]["..."] ? true : never` line — if the OpenAPI contract drifts, the assertion resolves to `never` and TypeScript fails the build. This is how the typed-end-to-end story stays honest from form input through API response.
-- **Convention:** call `useForm` with `resolver: zodResolver(schema)` and `mode: "onTouched"`. Use `register("field")` on inputs and `errors.field?.message` for inline display. Add `aria-invalid` and `aria-describedby` on inputs that can show an error.
-- **Top-level vs field errors:** keep a single `setApiError` state for API-side failures (bad credentials, server down) rendered inside a `<div role="alert">`. Field-level errors come from RHF and live under each input.
+- **Use the Form block, not raw `register()`.** `<FormField name="..." render={({ field }) => ...} />` is the single source of truth for a field's identity. `FormItem` generates a unique id (`React.useId`), `FormLabel`/`FormControl`/`FormMessage` all consume it for `htmlFor` / `id` / `aria-describedby` / `aria-invalid` automatically. You never repeat the field name and you never wire a11y by hand.
+- **Convention:** `useForm({ resolver: zodResolver(schema), mode: "onTouched", defaultValues: {...} })`. Always pass `defaultValues` — Controller-based fields need them and an undefined value throws "uncontrolled to controlled" warnings.
+- **Top-level vs field errors:** keep a single `setApiError` state for API-side failures (bad credentials, server down) rendered inside a `<div role="alert">`. Field-level errors are rendered by `<FormMessage />` from RHF's state — no extra plumbing.
 - **Don't transform in the schema:** if the output type differs from the input type (`.transform()`, `.pipe()` to a coerced schema, etc.), RHF's `Resolver<TIn, ?, TOut>` becomes awkward. Do post-parse coercion in the submit handler instead (e.g. empty-string → `undefined`).
 
 ## Environment Variables

@@ -404,9 +404,11 @@ This is the load-bearing line in the typed-end-to-end story. If a future contrib
 
 ## 10. Frontend UI
 
-`frontend/src/app/notes/page.tsx` (new file). Pattern: see `frontend/src/app/dashboard/page.tsx` for auth-gating and `frontend/src/app/login/page.tsx` for the RHF + zodResolver form pattern.
+`frontend/src/app/notes/page.tsx` (new file). Pattern: see `frontend/src/app/dashboard/page.tsx` for auth-gating and `frontend/src/app/login/page.tsx` for the canonical Form + Zod + RHF shape.
 
-Key bits in skeleton form:
+Forms use the **shadcn `Form` block** (`src/components/ui/form.tsx`) — `Form` / `FormField` / `FormItem` / `FormLabel` / `FormControl` / `FormMessage`. The block wires up label htmlFor, error-message IDs, `aria-invalid` and `aria-describedby` from a single source: the field's name. You never repeat the field name across `htmlFor`, `id`, `aria-describedby`, and `register("...")` — it lives in one place, on `<FormField name="..." />`.
+
+Skeleton:
 
 ```typescript
 "use client";
@@ -420,6 +422,16 @@ import { useAuth } from "@/lib/auth";
 import { client, unwrap, ApiError } from "@/lib/api";
 import { noteCreateSchema, type NoteCreateInput } from "@/lib/note-schemas";
 import type { components } from "@/lib/api-types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 type Note = components["schemas"]["NoteResponse"];
 
@@ -429,14 +441,10 @@ export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [apiError, setApiError] = useState("");
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<NoteCreateInput>({
+  const form = useForm<NoteCreateInput>({
     resolver: zodResolver(noteCreateSchema),
     mode: "onTouched",
+    defaultValues: { title: "", body: "" },
   });
 
   // Auth-gate the page — same pattern as dashboard.
@@ -459,20 +467,46 @@ export default function NotesPage() {
         client.POST("/api/v1/notes", { body: values }),
       );
       setNotes([created, ...notes]);
-      reset();
+      form.reset();
     } catch (err) {
       setApiError(err instanceof ApiError ? err.detail : "Something went wrong");
     }
   }
 
-  // Render: a form + a list. Use shadcn primitives (Card, Input, Button,
-  // Label) — see the login page for the inline-error pattern with
-  // aria-invalid / aria-describedby.
-  return null; /* skeleton; fill in */
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
+        {apiError && (
+          <div role="alert" className="bg-destructive/10 text-destructive ...">
+            {apiError}
+          </div>
+        )}
+
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Title</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* ...body field, submit button... */}
+      </form>
+    </Form>
+  );
 }
 ```
 
-The `client.POST("/api/v1/notes", { body: values })` call is fully typed end-to-end — if the backend renames a field, the `body` argument type changes and TypeScript fails the build at the call site.
+Two load-bearing things to notice:
+
+- **`client.POST("/api/v1/notes", { body: values })` is fully typed end-to-end.** If the backend renames a field, the `body` argument type changes and TypeScript fails the build at the call site.
+- **`<FormField name="title" />` is the single source of truth for the field's identity.** `FormItem` generates a unique id via `React.useId`, `FormLabel` reads it for `htmlFor`, `FormControl` reads it for `id` + `aria-describedby`, `FormMessage` reads it for the error message's id. You never have to type the field name twice, and you never have to think about a11y wiring — it's wired by construction.
 
 ## 11. Playwright E2E
 
