@@ -199,8 +199,9 @@ const tokens = await unwrap(client.POST("/api/v1/auth/login", { body: { email, p
 
 **Workflow when changing the backend contract:**
 1. Add/modify routes or Pydantic schemas in `backend/app/`.
-2. Run `make generate-api` (or `python backend/scripts/export_openapi.py && cd frontend && npm run generate:api`).
-3. Commit `frontend/openapi.json` + `frontend/src/lib/api-types.ts` alongside the backend change.
+2. **Bump `backend/pyproject.toml`'s `[project] version`.** The version flows through `importlib.metadata.version("app")` to FastAPI's `version=` kwarg and lands in `openapi.json`'s `info.version`. CI's `api-contract` job fails any PR that changes `frontend/openapi.json` without a matching version bump — bump major for breaking changes, minor for additive, patch for internal-only fixes (semver against the OpenAPI surface).
+3. Run `make generate-api` (or `python backend/scripts/export_openapi.py - > frontend/openapi.json && cd frontend && npm run generate:api`).
+4. Commit `backend/pyproject.toml` + `frontend/openapi.json` + `frontend/src/lib/api-types.ts` alongside the backend change.
 
 Call sites use `unwrap()` from `@/lib/api` to throw `ApiError` on non-2xx responses. The customFetch passed to `createClient` handles auth (Authorization header from in-memory access token), the `X-Request-ID` header, and 401 → refresh → retry.
 

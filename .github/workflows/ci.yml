@@ -122,6 +122,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Need history to compare openapi.json's info.version against main.
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -159,6 +162,27 @@ jobs:
             git diff frontend/openapi.json frontend/src/lib/api-types.ts
             exit 1
           fi
+
+      - name: Verify version bumped if contract changed
+        # On a PR: if frontend/openapi.json differs from main, then
+        # info.version must also differ. Forces contributors to bump
+        # backend/pyproject.toml when they change the API surface.
+        if: github.event_name == 'pull_request'
+        run: |
+          if git diff --quiet origin/${{ github.base_ref }} -- frontend/openapi.json; then
+            echo "No contract changes vs ${{ github.base_ref }} — version bump not required."
+            exit 0
+          fi
+          main_version=$(git show origin/${{ github.base_ref }}:frontend/openapi.json \
+            | python -c "import json,sys; print(json.load(sys.stdin)['info']['version'])")
+          pr_version=$(python -c "import json; print(json.load(open('frontend/openapi.json'))['info']['version'])")
+          if [ "$main_version" = "$pr_version" ]; then
+            echo "::error::OpenAPI contract changed but info.version is still $pr_version."
+            echo "Bump backend/pyproject.toml's [project] version to signal the contract change,"
+            echo "then re-run 'make generate-api' and commit the result."
+            exit 1
+          fi
+          echo "Version bumped: $main_version → $pr_version ✓"
 
   # ── End-to-end (Playwright) ─────────────────────────────────────────
   # Boots the full docker-compose stack and runs the Playwright suite

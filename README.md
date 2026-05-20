@@ -137,7 +137,13 @@ The frontend uses [`openapi-fetch`](https://openapi-ts.dev/openapi-fetch/) again
 const tokens = await unwrap(client.POST("/api/v1/auth/login", { body: { email, password } }));
 ```
 
-After any backend route or schema change, run `make generate-api` and commit the regenerated `frontend/openapi.json` and `frontend/src/lib/api-types.ts`. CI fails on drift.
+After any backend route or schema change:
+
+1. **Bump `backend/pyproject.toml`'s `[project] version`.** The version threads through `importlib.metadata.version("app")` → FastAPI's `version=` kwarg → `openapi.json`'s `info.version`. Semver against the OpenAPI surface: major for breaking, minor for additive, patch for internal fixes.
+2. Run `make generate-api` to regenerate `frontend/openapi.json` and `frontend/src/lib/api-types.ts`.
+3. Commit all three files (pyproject, openapi.json, api-types.ts) together with the backend change.
+
+CI's `api-contract` job enforces both invariants — drift between the committed schema and the live backend, **and** a missing version bump when the contract changes.
 
 ### Backend (standalone)
 

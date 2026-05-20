@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from importlib.metadata import version as _pkg_version
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +16,12 @@ from app.core.middleware import RequestContextMiddleware
 from app.core.observability import configure_observability
 from app.core.rate_limit import limiter
 from app.db.session import engine
+
+# Read the version from the installed package metadata so the
+# OpenAPI contract's `info.version` always tracks pyproject.toml.
+# CI fails any PR that changes the OpenAPI schema without also
+# bumping this value — see `.github/workflows/ci.yml`.
+__version__ = _pkg_version("app")
 
 
 @asynccontextmanager
@@ -32,6 +39,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title=settings.app_name,
+        version=__version__,
         docs_url="/api/docs" if settings.environment != "production" else None,
         redoc_url="/api/redoc" if settings.environment != "production" else None,
         lifespan=lifespan,
