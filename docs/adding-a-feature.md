@@ -24,7 +24,8 @@ Contract handoff
 Frontend
   [ ] 9. Zod schema   — frontend/src/lib/<feature>-schemas.ts (with _Assert*)
   [ ] 10. Page/UI     — frontend/src/app/<feature>/page.tsx (or component)
-  [ ] 11. E2E spec    — frontend/e2e/<feature>.spec.ts
+  [ ] 11a. Unit tests — frontend/src/lib/<feature>-schemas.test.ts (Vitest)
+  [ ] 11b. E2E spec   — frontend/e2e/<feature>.spec.ts (Playwright)
 
 Gates
   [ ] 12. make hooks && make test && make test-e2e
@@ -508,7 +509,37 @@ Two load-bearing things to notice:
 - **`client.POST("/api/v1/notes", { body: values })` is fully typed end-to-end.** If the backend renames a field, the `body` argument type changes and TypeScript fails the build at the call site.
 - **`<FormField name="title" />` is the single source of truth for the field's identity.** `FormItem` generates a unique id via `React.useId`, `FormLabel` reads it for `htmlFor`, `FormControl` reads it for `id` + `aria-describedby`, `FormMessage` reads it for the error message's id. You never have to type the field name twice, and you never have to think about a11y wiring — it's wired by construction.
 
-## 11. Playwright E2E
+## 11. Frontend tests (Vitest + Playwright)
+
+The frontend has two non-overlapping test layers — pick the right one for what you're testing:
+
+| Layer | Use when | Lives in |
+| --- | --- | --- |
+| **Vitest** (`make test-unit`) | Pure logic — schema validation edges, data transforms, retry/coordination invariants. No DOM, no browser, runs in ~300ms. | `frontend/src/**/*.test.ts` (colocated with the module under test) |
+| **Playwright** (`make test-e2e`) | UI behaviour — does the form submit, does the list re-render, does the route protect itself. Browser + real backend. | `frontend/e2e/*.spec.ts` |
+
+**Rule of thumb:** if you can describe the test in terms of inputs and outputs to a pure function or a mockable module, write Vitest. If the assertion needs a real DOM, real network, or real cookies, write Playwright.
+
+### 11a. Vitest — schema validation
+
+`frontend/src/lib/note-schemas.test.ts` (new file). Pattern: see `frontend/src/lib/auth-schemas.test.ts`. Assert on `safeParse` results, including the `error.issues[0].path` so RHF will surface messages on the right field.
+
+```typescript
+import { describe, expect, it } from "vitest";
+import { noteCreateSchema } from "./note-schemas";
+
+describe("noteCreateSchema", () => {
+  it("rejects an empty title with a path-on-title error", () => {
+    const result = noteCreateSchema.safeParse({ title: "", body: "x" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toEqual(["title"]);
+    }
+  });
+});
+```
+
+### 11b. Playwright — UI happy path
 
 `frontend/e2e/notes.spec.ts` (new file). Pattern: see `frontend/e2e/auth.spec.ts`.
 
@@ -541,7 +572,7 @@ test("authenticated user creates a note and sees it listed", async ({ page }) =>
 
 ```bash
 make hooks                # pre-commit (ruff, black, prettier check, eslint, hygiene)
-make test                 # backend pytest + frontend typecheck
+make test                 # backend pytest + frontend unit tests (Vitest) + typecheck
 make test-e2e             # Playwright against the running compose stack
 ```
 
