@@ -40,7 +40,7 @@ def test_rate_limit_enabled_defaults_to_true(monkeypatch: pytest.MonkeyPatch) ->
     the unit test that proves the language-level default.
     """
     monkeypatch.delenv("RATE_LIMIT_ENABLED", raising=False)
-    s = Settings(_env_file=None)  # type: ignore[call-arg]
+    s = Settings(_env_file=None)
     assert s.rate_limit_enabled is True
 
 

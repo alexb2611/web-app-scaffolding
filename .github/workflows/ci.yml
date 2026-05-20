@@ -187,6 +187,13 @@ jobs:
           docker compose logs backend
           exit 1
 
+      - name: Run database migrations
+        # The backend image starts with an empty schema — apply committed
+        # Alembic migrations before the suite hits any auth endpoint.
+        # Locally this is persisted in the pgdata volume, but CI starts
+        # with a fresh DB on every run.
+        run: docker compose exec -T backend alembic upgrade head
+
       - name: Wait for frontend
         run: |
           for i in {1..60}; do
