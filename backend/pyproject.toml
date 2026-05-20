@@ -5,7 +5,9 @@ name = "app"
 # `importlib.metadata.version("app")` and surfaced as the OpenAPI
 # schema's `info.version`. CI's `api-contract` job fails any PR that
 # changes `frontend/openapi.json` without also changing this value.
-version = "0.2.0"
+#
+# 0.3.0 — adds the /api/v1/notes resource (additive, no breakage).
+version = "0.3.0"
 description = "Web application backend"
 requires-python = ">=3.12"
 dependencies = [

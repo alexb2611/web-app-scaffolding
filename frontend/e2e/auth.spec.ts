@@ -83,6 +83,11 @@ test.describe("login", () => {
     const email = uniqueEmail("badpass");
     await register(page, email);
     await page.getByRole("button", { name: /sign out/i }).click();
+    // Wait for the sign-out redirect to finish before navigating to /login.
+    // Without this, the next page.goto can race with logout: the
+    // `auth_present` cookie is still set, middleware redirects to
+    // /dashboard, and the test sees a dashboard loading state instead.
+    await expect(page).toHaveURL(/\/login(?:\?|$)/);
 
     await login(page, email, "totally-wrong-password");
     await expect(page).toHaveURL(/\/login(?:\?|$)/);
@@ -94,6 +99,7 @@ test.describe("login", () => {
     const email = uniqueEmail("CaseTest").replace("e2e-", "E2E-");
     await register(page, email);
     await page.getByRole("button", { name: /sign out/i }).click();
+    await expect(page).toHaveURL(/\/login(?:\?|$)/);
 
     await login(page, email.toUpperCase());
     await expect(page).toHaveURL(/\/dashboard$/);

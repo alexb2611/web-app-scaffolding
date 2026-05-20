@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,21 @@ export default function DashboardPage() {
               <dd className="font-mono text-xs">{user.id}</dd>
             </div>
           </dl>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Your data</CardTitle>
+          <CardDescription>
+            Reference resource for the scaffold — see how a user-owned CRUD feature
+            wires up end-to-end.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href="/notes">View notes →</Link>
+          </Button>
         </CardContent>
       </Card>
 
