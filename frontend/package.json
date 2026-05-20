@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"e2e/**/*.ts\" \"playwright.config.ts\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\" \"e2e/**/*.ts\" \"playwright.config.ts\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"e2e/**/*.ts\" \"playwright.config.ts\" \"instrumentation*.ts\" \"sentry.*.config.ts\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\" \"e2e/**/*.ts\" \"playwright.config.ts\" \"instrumentation*.ts\" \"sentry.*.config.ts\"",
     "typecheck": "tsc --noEmit",
     "generate:api": "openapi-typescript openapi.json -o src/lib/api-types.ts",
     "test:e2e": "playwright test",
@@ -30,6 +30,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@playwright/test": "^1.60.0",
+    "@sentry/nextjs": "^10.53.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22",
     "@types/react": "^19",
