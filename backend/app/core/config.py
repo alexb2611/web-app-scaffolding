@@ -1,6 +1,11 @@
 """Core application configuration loaded from environment variables."""
 
+from typing import Self
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
+
+PLACEHOLDER_SECRET_KEY = "change-me-to-a-random-secret-key"
 
 
 class Settings(BaseSettings):
@@ -16,7 +21,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # Security
-    secret_key: str = "change-me-to-a-random-secret-key"
+    secret_key: str = PLACEHOLDER_SECRET_KEY
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
     algorithm: str = "HS256"
@@ -53,6 +58,18 @@ class Settings(BaseSettings):
         return self.database_url.replace("+asyncpg", "+psycopg2")
 
     model_config = {"env_file": ".env", "extra": "ignore"}
+
+    @model_validator(mode="after")
+    def _reject_placeholder_secret_in_production(self) -> Self:
+        if (
+            self.environment == "production"
+            and self.secret_key == PLACEHOLDER_SECRET_KEY
+        ):
+            raise ValueError(
+                "secret_key is still the .env.example placeholder. "
+                "Set SECRET_KEY to a strong random value before running in production."
+            )
+        return self
 
 
 settings = Settings()
