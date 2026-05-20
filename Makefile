@@ -2,7 +2,7 @@
 # Makefile — common development shortcuts
 # ---------------------------------------------------------------------------
 
-.PHONY: dev down build logs migrate test lint format clean generate-api
+.PHONY: dev down build logs migrate test test-e2e lint format clean generate-api
 
 # Start all services
 dev:
@@ -54,6 +54,15 @@ test-backend:
 
 test-cov:
 	docker compose exec backend pytest --cov=app --cov-report=term-missing
+
+# End-to-end browser tests via Playwright. Requires the compose stack to
+# already be running (`make dev`) with RATE_LIMIT_ENABLED=false in .env.
+test-e2e:
+	cd frontend && npx playwright test
+
+# Same suite but with the Playwright UI runner — great for debugging.
+test-e2e-ui:
+	cd frontend && npx playwright test --ui
 
 # --- Code Quality ---
 

@@ -132,3 +132,90 @@ jobs:
             git diff frontend/openapi.json frontend/src/lib/api-types.ts
             exit 1
           fi
+
+  # ── End-to-end (Playwright) ─────────────────────────────────────────
+  # Boots the full docker-compose stack and runs the Playwright suite
+  # against http://localhost:3000. Rate limiting is explicitly disabled
+  # so the auth endpoints don't 429 the suite — see RATE_LIMIT_ENABLED
+  # in backend/app/core/config.py.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Write compose env
+        run: |
+          cp .env.example .env
+          {
+            echo ""
+            echo "# Disable rate limiting for the E2E run."
+            echo "RATE_LIMIT_ENABLED=false"
+            echo ""
+            echo "# Strong secret so production-guard never fires even if ENVIRONMENT flips."
+            echo "SECRET_KEY=ci-e2e-$(openssl rand -hex 32)"
+          } >> .env
+
+      - name: Start stack
+        run: docker compose up -d --build db backend frontend
+
+      - name: Wait for backend health
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8000/api/v1/health >/dev/null 2>&1; then
+              echo "Backend healthy after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Backend never became healthy"
+          docker compose logs backend
+          exit 1
+
+      - name: Wait for frontend
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://localhost:3000 -o /dev/null 2>&1; then
+              echo "Frontend ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Frontend never became ready"
+          docker compose logs frontend
+          exit 1
+
+      - name: Run Playwright tests
+        working-directory: frontend
+        run: npx playwright test
+
+      - name: Dump compose logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 14
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose down -v

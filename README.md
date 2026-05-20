@@ -144,6 +144,24 @@ npm run typecheck     # TypeScript check
 npm run format        # Prettier
 ```
 
+### End-to-end tests (Playwright)
+
+Browser-driven tests covering the full auth flow live in `frontend/e2e/`. They run against the live docker-compose stack and exercise the path that pytest can't reach: Next.js proxy + cookies + token rotation + middleware redirects.
+
+```bash
+# 1. Bring up the stack with rate limiting disabled (auth endpoints would
+#    otherwise 429 the suite). The .env flag is preserved across runs.
+make dev   # docker compose up --build
+# (ensure RATE_LIMIT_ENABLED=false is set in .env — see .env.example)
+
+# 2. Run the suite from the host:
+make test-e2e            # one-shot run
+make test-e2e-ui         # Playwright UI runner — great for debugging
+cd frontend && npx playwright show-report   # browse last HTML report
+```
+
+Each test generates a unique email so the suite is repeatable on a non-clean database and runs fully in parallel (~8s wall-clock for the auth suite). CI runs the same suite headless against a fresh compose stack and uploads `playwright-report/` as an artifact on failure.
+
 ### Adding shadcn/ui components
 
 ```bash
@@ -167,14 +185,16 @@ alembic upgrade head
 
 ## CI Pipeline
 
-GitHub Actions runs on every push and PR to `main`. Both jobs must pass:
+GitHub Actions runs on every push and PR to `main`. All jobs must pass:
 
 | Job | Checks |
 |-----|--------|
 | **Backend** | `ruff check .` · `black --check .` · `mypy .` · `pytest` (with PostgreSQL service) |
 | **Frontend** | `npm run lint` · `npm run typecheck` · `npm run format:check` · `npm run build` |
+| **API contract** | Regenerates OpenAPI schema + TS types from the live backend and fails on drift |
+| **E2E** | Boots full docker-compose stack and runs Playwright auth suite against it. Uploads `playwright-report/` on failure |
 
-All backend tools are installed via `pip install -e ".[dev]"`, all frontend tools via `npm ci`. Run `make lint && make format && make typecheck && make test` locally to catch issues before pushing.
+All backend tools are installed via `pip install -e ".[dev]"`, all frontend tools via `npm ci`. Run `make lint && make format && make typecheck && make test && make test-e2e` locally to catch issues before pushing.
 
 ## Environment Variables
 
