@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -15,17 +16,24 @@ export default function DashboardPage() {
   const { user, isLoading, logout } = useAuth();
   const router = useRouter();
 
-  if (isLoading) {
+  // Side-effect redirects must run in an effect, not during render —
+  // calling `router.push` inline triggers React's "Cannot update a
+  // component while rendering a different component" warning. The
+  // middleware also redirects unauthenticated users away from
+  // `/dashboard`, so this is the defence-in-depth case for when the
+  // session expires while the tab is open.
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login");
+    }
+  }, [isLoading, user, router]);
+
+  if (isLoading || !user) {
     return (
       <main className="flex min-h-screen items-center justify-center">
         <p className="text-muted-foreground">Loading…</p>
       </main>
     );
-  }
-
-  if (!user) {
-    router.push("/login");
-    return null;
   }
 
   return (
