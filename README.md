@@ -55,10 +55,14 @@ frontend/                   # Next.js application
     hooks/                  # Custom React hooks
     lib/                    # Utilities, API client, auth context
 
+docs/                       # Contributor docs
+  adding-a-feature.md       # End-to-end recipe for adding a user-owned resource
 docker-compose.yml          # Local dev: PostgreSQL + backend + frontend
 Makefile                    # Common command shortcuts
 CLAUDE.md                   # Project guide for Claude Code
 ```
+
+**New to the scaffold? Start with [docs/adding-a-feature.md](docs/adding-a-feature.md)** — a worked recipe that walks through every layer (model → migration → service → route → tests → OpenAPI export → Zod schema → form → E2E) using a canonical "user-owned CRUD" example. It's the fastest way to learn the conventions without reading every file.
 
 ## API Endpoints
 
