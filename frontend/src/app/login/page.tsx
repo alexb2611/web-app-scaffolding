@@ -1,10 +1,14 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
+import { loginSchema, type LoginInput } from "@/lib/auth-schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,23 +24,26 @@ import {
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Top-level error covers API failures (bad credentials, server down) —
+  // anything that isn't a field-level validation issue.
+  const [apiError, setApiError] = useState("");
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError("");
-    setIsSubmitting(true);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginInput>({
+    resolver: zodResolver(loginSchema),
+    mode: "onTouched",
+  });
 
+  async function onSubmit(values: LoginInput): Promise<void> {
+    setApiError("");
     try {
-      await login(email, password);
+      await login(values.email, values.password);
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof ApiError ? err.detail : "Something went wrong");
-    } finally {
-      setIsSubmitting(false);
+      setApiError(err instanceof ApiError ? err.detail : "Something went wrong");
     }
   }
 
@@ -48,11 +55,14 @@ export default function LoginPage() {
           <CardDescription>Enter your credentials to continue</CardDescription>
         </CardHeader>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <CardContent className="space-y-4">
-            {error && (
-              <div className="bg-destructive/10 text-destructive rounded-md px-4 py-3 text-sm">
-                {error}
+            {apiError && (
+              <div
+                role="alert"
+                className="bg-destructive/10 text-destructive rounded-md px-4 py-3 text-sm"
+              >
+                {apiError}
               </div>
             )}
 
@@ -61,12 +71,17 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                required
                 autoComplete="email"
                 placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                aria-invalid={errors.email ? "true" : "false"}
+                aria-describedby={errors.email ? "email-error" : undefined}
+                {...register("email")}
               />
+              {errors.email && (
+                <p id="email-error" className="text-destructive text-sm">
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -74,11 +89,16 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
-                required
                 autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                aria-invalid={errors.password ? "true" : "false"}
+                aria-describedby={errors.password ? "password-error" : undefined}
+                {...register("password")}
               />
+              {errors.password && (
+                <p id="password-error" className="text-destructive text-sm">
+                  {errors.password.message}
+                </p>
+              )}
             </div>
           </CardContent>
 
