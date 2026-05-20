@@ -2,7 +2,7 @@
 # Makefile — common development shortcuts
 # ---------------------------------------------------------------------------
 
-.PHONY: dev down build logs migrate test test-e2e lint format clean generate-api
+.PHONY: dev down build logs migrate test test-e2e lint format clean generate-api install-hooks hooks
 
 # Start all services
 dev:
@@ -78,6 +78,18 @@ format:
 typecheck:
 	docker compose exec backend mypy .
 	cd frontend && npm run typecheck
+
+# --- Pre-commit hooks ---
+
+# One-time setup. Requires `pre-commit` on PATH (install via `pip install
+# pre-commit` or `pipx install pre-commit`, or via `pip install -e
+# backend/[.dev]` if you've set up a host venv).
+install-hooks:
+	pre-commit install
+
+# Run all hooks against every tracked file — same thing CI does.
+hooks:
+	pre-commit run --all-files
 
 # --- API contract ---
 

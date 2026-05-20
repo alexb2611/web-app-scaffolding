@@ -1,0 +1,91 @@
+# ---------------------------------------------------------------------------
+# Pre-commit hooks — the fast gates, locally and in CI.
+# ---------------------------------------------------------------------------
+# One-time setup:
+#     pip install pre-commit       # (or via `pip install -e backend/[.dev]`)
+#     pre-commit install            # or `make install-hooks`
+#
+# Then every `git commit` runs these hooks first. The same hooks run in
+# the `pre-commit` CI job against `--all-files`, so bypassing locally
+# with `--no-verify` will still fail at PR time.
+#
+# Design notes:
+#   - Backend hooks autofix per-file (ruff, black). A failing commit
+#     leaves the fixes in your working tree; `git add -u && git commit`
+#     to re-commit.
+#   - Frontend hooks run `npm run format:check` / `npm run lint` against
+#     the whole `frontend/` dir (check-only). If they fail, run
+#     `make format` and re-commit. We don't autofix because the npm
+#     scripts would touch unstaged files.
+#   - Slow gates (mypy, pytest, Playwright, tsc) intentionally live in CI
+#     only — pre-commit should stay sub-10s so nobody is tempted to
+#     `--no-verify`.
+# ---------------------------------------------------------------------------
+
+default_install_hook_types: [pre-commit]
+
+repos:
+  # ── Hygiene ──────────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: |
+          (?x)^(
+              frontend/openapi\.json
+            | frontend/src/lib/api-types\.ts
+            | frontend/tsconfig\.tsbuildinfo
+            | frontend/package-lock\.json
+          )$
+      - id: end-of-file-fixer
+        exclude: |
+          (?x)^(
+              frontend/openapi\.json
+            | frontend/src/lib/api-types\.ts
+            | frontend/tsconfig\.tsbuildinfo
+            | frontend/package-lock\.json
+          )$
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  # ── Backend: Ruff (lint + autofix) ───────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.13
+    hooks:
+      - id: ruff-check
+        args: ["--fix"]
+        files: ^backend/.+\.py$
+
+  # ── Backend: Black (format) ──────────────────────────────────────────
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        files: ^backend/.+\.py$
+
+  # ── Frontend: check-only via existing npm scripts ────────────────────
+  # `npm run format:check` and `npm run lint` already exist and target
+  # the conventional file patterns. We invoke them from `frontend/` and
+  # rely on their exit codes — pass_filenames=false because the scripts
+  # discover their own targets via the package.json glob patterns.
+  - repo: local
+    hooks:
+      - id: prettier-check
+        name: Prettier (frontend, check-only)
+        language: system
+        entry: bash -c 'cd frontend && npm run --silent format:check'
+        files: ^frontend/.+\.(ts|tsx|css|json)$
+        exclude: ^frontend/(openapi\.json|src/lib/api-types\.ts|tsconfig\.tsbuildinfo|package-lock\.json|node_modules/|\.next/|playwright-report/|test-results/)
+        pass_filenames: false
+
+      - id: eslint-frontend
+        name: ESLint (frontend)
+        language: system
+        entry: bash -c 'cd frontend && npm run --silent lint'
+        files: ^frontend/src/.+\.(ts|tsx)$
+        pass_filenames: false
