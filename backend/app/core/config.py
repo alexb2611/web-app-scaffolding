@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
+    # Rate limiting. On by default; set RATE_LIMIT_ENABLED=false for E2E suites
+    # and load tests that would otherwise trip the auth-endpoint throttles.
+    rate_limit_enabled: bool = True
+
     # Database
     database_url: str = "postgresql+asyncpg://postgres:postgres@db:5432/myapp"
 

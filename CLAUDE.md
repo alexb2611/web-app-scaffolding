@@ -111,9 +111,18 @@ make format       # Format both backend and frontend
 
 ## Workflow Rules
 
-- **Tests required:** Write or update tests for every code change. Backend changes need pytest tests; frontend changes need type checking at minimum.
+- **Tests required:** Write or update tests for every code change. Backend changes need pytest tests; frontend changes need type checking at minimum. Changes that affect the auth flow, routing, or page wiring should add or update a Playwright spec in `frontend/e2e/`.
 - **Test before commit:** Always run tests and ensure they pass before committing. For backend: `pytest`; for frontend: `npm run typecheck && npm run lint`. Never commit with failing tests.
 - **Lint before commit:** Run linting (`ruff check .` for backend, `npm run lint` for frontend) and fix any issues before committing.
+
+## End-to-end tests (Playwright)
+
+Browser-driven auth flow tests live in `frontend/e2e/`. They run against the live docker-compose stack and cover the path pytest can't reach (Next.js proxy + cookies + middleware redirects).
+
+- **Run locally:** `make test-e2e` (requires `make dev` first, plus `RATE_LIMIT_ENABLED=false` in `.env`). `make test-e2e-ui` opens the Playwright UI runner.
+- **Selectors:** prefer `getByLabel`, `getByRole({ name })`, `getByText` — resilient against markup tweaks. Don't add `data-testid` unless an accessible selector is genuinely impossible.
+- **Isolation:** each test generates a unique email via the `uniqueEmail(label)` helper so the suite is parallel-safe and re-runnable on a non-clean DB.
+- **CI:** the `e2e` job in `.github/workflows/ci.yml` brings the full stack up, runs the suite, and uploads `playwright-report/` as an artifact on failure.
 
 ## Environment Variables
 

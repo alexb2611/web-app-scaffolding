@@ -62,6 +62,12 @@ coverage/
 .pytest_cache/
 .mypy_cache/
 
+# Playwright artifacts
+frontend/playwright-report/
+frontend/test-results/
+frontend/blob-report/
+frontend/playwright/.cache/
+
 # =============================================================================
 # Claude Code (keep settings, ignore local overrides)
 # =============================================================================
